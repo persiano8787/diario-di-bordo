@@ -1,7 +1,14 @@
 # DIARIO_BORDO — Stato Progetto
 
 **Data:** 2026-07-15
-**Fase:** v1 creata in chat browser claude.ai — da recuperare file + risolvere hosting
+**Fase:** v1 DEPLOYED su GitHub Pages — da installare su telefono
+
+## Deploy
+- Repo pubblico: https://github.com/persiano8787/diario-di-bordo
+- URL app: **https://persiano8787.github.io/diario-di-bordo/**
+- Fix applicati vs versione chat browser: sw.js reale (stale-while-revalidate) al posto di blob URL rifiutato da Chrome; manifest.json file al posto di data: URL
+- Aggiornamenti: modifica → commit → push → telefono si aggiorna al secondo avvio con rete
+- Cache SW: bump `CACHE='diario-vN'` in sw.js a ogni release
 
 ## Cos'è
 PWA single-file (HTML) — diario task giornaliero. Cattura veloce da telefono Android con dettatura Wispr Flow.
@@ -23,7 +30,5 @@ PWA single-file (HTML) — diario task giornaliero. Cattura veloce da telefono A
 - Soluzione proposta: GitHub Pages (HTTPS, gratis, raggiungibile ovunque, solo codice — le note restano su IndexedDB telefono)
 
 ## Prossimi step
-1. Recuperare index.html dall'artifact chat browser (download utente) OPPURE ricostruire qui
-2. Repo git + GitHub Pages (conferma utente prima di push)
-3. Installare PWA da URL https, test offline (modalità aereo)
-4. v2 possibili: scorciatoia dinamica long-press icona, flag task ricorrente (opzione B), sync cross-device
+1. Installare PWA su telefono da URL https, test offline (modalità aereo)
+2. v2 possibili: scorciatoia dinamica long-press icona, flag task ricorrente (opzione B), sync cross-device

@@ -211,6 +211,13 @@ textarea.preset{
   cursor:pointer;margin-top:16px;
 }
 .hint{font-size:.72rem;color:var(--ink-soft);margin-top:6px}
+.cal-nav.active{background:var(--accent);color:#fff}
+.sheet-input{
+  width:100%;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:11px 13px;font-size:1rem;color:var(--ink);
+  font-family:inherit;outline:none;
+}
+.type-row-time{font-size:.78rem;color:var(--ink-soft);margin-left:auto}
 </style>
 </head>
 <body>
@@ -251,7 +258,7 @@ textarea.preset{
     <h2>Menu</h2>
     <div class="menu-row" id="calRow"><span class="ic">📅</span><span>Calendario</span></div>
     <div class="menu-row" id="presetRow"><span class="ic">📋</span><span>Task per turno</span></div>
-    <div class="menu-row" id="importShiftsRow"><span class="ic">📆</span><span>Importa turni (.Shifter)</span></div>
+    <div class="menu-row" id="turniRow"><span class="ic">📆</span><span>Turni</span></div>
     <input type="file" id="shifterFile" style="display:none">
     <div class="menu-row" id="themeRow"><span class="ic" id="themeIc">🌙</span><span id="themeLabel">Tema scuro</span></div>
     <div class="menu-row" id="exportJsonRow"><span class="ic">💾</span><span>Esporta backup (JSON)</span></div>
@@ -285,10 +292,46 @@ textarea.preset{
   </div>
 </div>
 
+<!-- Turni sheet -->
+<div class="panel" id="turniPanel">
+  <div class="sheet">
+    <h2>Turni</h2>
+    <div class="menu-row" id="tInsertRow"><span class="ic">✎</span><span>Inserisci turni nel calendario</span></div>
+    <div class="menu-row" id="tTypesRow"><span class="ic">⚙</span><span>Tipi turno</span></div>
+    <div class="menu-row" id="tImportRow"><span class="ic">📥</span><span>Importa da Shifter (.Shifter)</span></div>
+  </div>
+</div>
+
+<!-- Shift types sheet -->
+<div class="panel" id="typesPanel">
+  <div class="sheet">
+    <h2>Tipi turno</h2>
+    <div id="typesList"></div>
+    <button class="primary-btn" id="typeAddBtn">+ Nuovo tipo</button>
+  </div>
+</div>
+
+<!-- Shift type edit sheet -->
+<div class="panel" id="typeEditPanel">
+  <div class="sheet">
+    <h2 id="typeEditTitle">Tipo turno</h2>
+    <div class="preset-label">Nome / codice</div>
+    <input type="text" id="typeCode" class="sheet-input" placeholder="Es. 15">
+    <div class="preset-label">Inizio</div>
+    <input type="time" id="typeStart" class="sheet-input">
+    <div class="preset-label">Fine</div>
+    <input type="time" id="typeEnd" class="sheet-input">
+    <div class="hint">Inizio = fine → giorno senza orario (es. Off). Fascia calcolata dall'ora di inizio.</div>
+    <button class="primary-btn" id="typeSaveBtn">Salva</button>
+    <button class="primary-btn" id="typeDelBtn" style="background:var(--danger)">Elimina tipo</button>
+  </div>
+</div>
+
 <!-- Shift picker sheet -->
 <div class="panel" id="shiftPickPanel">
   <div class="sheet">
     <h2 id="shiftPickTitle">Turno</h2>
+    <div class="hint" id="shiftPickHint" style="display:none;margin-bottom:8px">Modalità inserimento: dopo la scelta passo al giorno seguente. Tocca fuori per terminare.</div>
     <div id="shiftPickList"></div>
   </div>
 </div>
@@ -299,8 +342,12 @@ textarea.preset{
     <div class="cal-head">
       <button class="cal-nav" id="calPrev">‹</button>
       <span class="cal-title" id="calTitle"></span>
-      <button class="cal-nav" id="calNext">›</button>
+      <div style="display:flex;gap:6px">
+        <button class="cal-nav" id="calEditBtn" title="Inserisci turni">✎</button>
+        <button class="cal-nav" id="calNext">›</button>
+      </div>
     </div>
+    <div class="hint" id="calEditHint" style="display:none;margin-bottom:8px">Inserimento turni attivo: tocca un giorno e scegli il turno, avanzo da solo al giorno dopo.</div>
     <div class="cal-grid" id="calGrid"></div>
   </div>
 </div>
@@ -329,6 +376,10 @@ function relLabel(k){
   if(k===shiftDay(todayKey(),-1))return'Ieri';
   if(k===shiftDay(todayKey(),1))return'Domani';
   return prettyDate(k).split(' ').slice(0,1)[0];
+}
+function shortDate(k){
+  const d=keyToDate(k),m=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+  return d.getDate()+' '+m[d.getMonth()]+(d.getFullYear()!==new Date().getFullYear()?' '+d.getFullYear():'');
 }
 
 /* ---------- IndexedDB ---------- */
@@ -448,7 +499,7 @@ async function render(){
       <div class="task-body">
         <div class="task-text"></div>
         <div class="task-meta">
-          ${t.carried?'<span class="carried-flag">↻ da '+relLabel(t.origin)+'</span>':''}
+          ${t.carried?'<span class="carried-flag">↻ da '+shortDate(t.origin)+'</span>':''}
           ${tags.map(tg=>'<span class="tag">#'+tg+'</span>').join('')}
           <span class="time">${t.time||''}</span>
         </div>
@@ -590,8 +641,16 @@ document.getElementById('searchInput').addEventListener('input',async e=>{
 const calPanel=document.getElementById('calPanel');
 const MONTHS_IT=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
 let calY,calM;
+let calEdit=false;
+function setCalEdit(on){
+  calEdit=on;
+  document.getElementById('calEditBtn').classList.toggle('active',on);
+  document.getElementById('calEditHint').style.display=on?'block':'none';
+}
+document.getElementById('calEditBtn').onclick=()=>setCalEdit(!calEdit);
 function openCal(){
   const d=keyToDate(viewDate);calY=d.getFullYear();calM=d.getMonth();
+  setCalEdit(false);
   renderCal();calPanel.classList.add('show');
 }
 document.getElementById('dateBlock').onclick=openCal;
@@ -632,20 +691,35 @@ async function renderCal(){
       dot.className='cal-dot '+(info.done===info.tot?'alldone':'pend');
       cell.appendChild(dot);
     }
-    cell.onclick=()=>{viewDate=key;calPanel.classList.remove('show');render();};
+    cell.onclick=()=>{
+      if(calEdit){openShiftPicker(key,true);return;}
+      viewDate=key;calPanel.classList.remove('show');render();
+    };
     cell.oncontextmenu=e=>{e.preventDefault();openShiftPicker(key);}; // long-press su Android
     grid.appendChild(cell);
   }
 }
 
-/* ---------- shift picker (long-press su giorno) ---------- */
+/* ---------- shift picker (long-press o modalità inserimento) ---------- */
 const shiftPickPanel=document.getElementById('shiftPickPanel');
 let pickDay=null;
-function openShiftPicker(day){
+function openShiftPicker(day,chain){
   pickDay=day;
   document.getElementById('shiftPickTitle').textContent='Turno · '+prettyDate(day);
+  document.getElementById('shiftPickHint').style.display=chain?'block':'none';
   const list=document.getElementById('shiftPickList');
   list.innerHTML='';
+  const after=async()=>{
+    if(chain){
+      const next=shiftDay(pickDay,1);
+      const nd=keyToDate(next);
+      if(nd.getMonth()!==calM||nd.getFullYear()!==calY){calM=nd.getMonth();calY=nd.getFullYear();}
+      await renderCal();
+      openShiftPicker(next,true);
+    }else{
+      shiftPickPanel.classList.remove('show');renderCal();render();
+    }
+  };
   const mk=(html,fn)=>{
     const r=document.createElement('div');r.className='menu-row';r.innerHTML=html;r.onclick=fn;list.appendChild(r);
   };
@@ -656,14 +730,78 @@ function openShiftPicker(day){
       async()=>{
         const prev=await getShift(pickDay);
         await putShift({day:pickDay,code:t.code,start:t.start,end:t.end,fascia:f,seeded:prev?prev.seeded:false});
-        shiftPickPanel.classList.remove('show');renderCal();render();
+        after();
       });
   });
   mk('<span class="ic">✕</span><span>Nessun turno</span>',
-    async()=>{await delShift(pickDay);shiftPickPanel.classList.remove('show');renderCal();render();});
+    async()=>{await delShift(pickDay);after();});
   shiftPickPanel.classList.add('show');
 }
-shiftPickPanel.onclick=e=>{if(e.target===shiftPickPanel)shiftPickPanel.classList.remove('show');};
+shiftPickPanel.onclick=e=>{if(e.target===shiftPickPanel){shiftPickPanel.classList.remove('show');render();}};
+
+/* ---------- turni: sotto-menu + tipi turno ---------- */
+function setShiftTypes(l){localStorage.setItem('shiftTypes',JSON.stringify(l));}
+const turniPanel=document.getElementById('turniPanel');
+const typesPanel=document.getElementById('typesPanel');
+const typeEditPanel=document.getElementById('typeEditPanel');
+document.getElementById('turniRow').onclick=()=>{menuPanel.classList.remove('show');turniPanel.classList.add('show');};
+turniPanel.onclick=e=>{if(e.target===turniPanel)turniPanel.classList.remove('show');};
+typesPanel.onclick=e=>{if(e.target===typesPanel)typesPanel.classList.remove('show');};
+typeEditPanel.onclick=e=>{if(e.target===typeEditPanel)typeEditPanel.classList.remove('show');};
+document.getElementById('tInsertRow').onclick=()=>{turniPanel.classList.remove('show');openCal();setCalEdit(true);};
+document.getElementById('tTypesRow').onclick=()=>{turniPanel.classList.remove('show');renderTypes();typesPanel.classList.add('show');};
+document.getElementById('tImportRow').onclick=()=>document.getElementById('shifterFile').click();
+
+let editTypeIdx=null;
+function renderTypes(){
+  const list=document.getElementById('typesList');list.innerHTML='';
+  getShiftTypes().forEach((t,i)=>{
+    const f=fasciaOf(t.code,t.start,t.end);
+    const r=document.createElement('div');r.className='menu-row';
+    r.innerHTML='<span class="ic"><span class="cal-shift f-'+(f||'none')+'">'+t.code+'</span></span>'+
+      '<span>'+(f?FASCIA_NAME[f]:'—')+'</span>'+
+      '<span class="type-row-time">'+(t.start&&t.start!==t.end?t.start+'–'+t.end:'')+'</span>';
+    r.onclick=()=>openTypeEdit(i);
+    list.appendChild(r);
+  });
+}
+function openTypeEdit(i){
+  editTypeIdx=i;
+  const t=i==null?{code:'',start:'',end:''}:getShiftTypes()[i];
+  document.getElementById('typeEditTitle').textContent=i==null?'Nuovo tipo turno':'Modifica tipo turno';
+  document.getElementById('typeCode').value=t.code;
+  document.getElementById('typeStart').value=t.start;
+  document.getElementById('typeEnd').value=t.end;
+  document.getElementById('typeDelBtn').style.display=i==null?'none':'block';
+  typeEditPanel.classList.add('show');
+}
+document.getElementById('typeAddBtn').onclick=()=>openTypeEdit(null);
+document.getElementById('typeSaveBtn').onclick=async()=>{
+  const code=document.getElementById('typeCode').value.trim();
+  if(!code){toast('Manca il nome del turno');return;}
+  const start=document.getElementById('typeStart').value||'00:00';
+  const end=document.getElementById('typeEnd').value||'00:00';
+  const list=getShiftTypes();
+  const orig=editTypeIdx==null?null:list[editTypeIdx];
+  if(editTypeIdx==null)list.push({code,start,end});else list[editTypeIdx]={code,start,end};
+  setShiftTypes(list);
+  if(orig){ // propaga la modifica ai giorni già assegnati con questo tipo
+    const all=await getAllShifts();
+    for(const s of all){
+      if(s.code===orig.code){
+        s.code=code;s.start=start;s.end=end;s.fascia=fasciaOf(code,start,end);
+        await putShift(s);
+      }
+    }
+  }
+  typeEditPanel.classList.remove('show');renderTypes();renderCal();render();toast('Tipo turno salvato');
+};
+document.getElementById('typeDelBtn').onclick=()=>{
+  if(editTypeIdx==null)return;
+  const list=getShiftTypes();list.splice(editTypeIdx,1);setShiftTypes(list);
+  typeEditPanel.classList.remove('show');renderTypes();
+  toast('Tipo eliminato (giorni già assegnati restano)');
+};
 
 /* ---------- preset editor ---------- */
 const presetPanel=document.getElementById('presetPanel');
@@ -690,7 +828,6 @@ function loadSqlJs(){
     document.head.appendChild(s);
   });
 }
-document.getElementById('importShiftsRow').onclick=()=>document.getElementById('shifterFile').click();
 document.getElementById('shifterFile').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   e.target.value='';
@@ -718,6 +855,7 @@ document.getElementById('shifterFile').onchange=async e=>{
     }
     sdb.close();
     menuPanel.classList.remove('show');
+    turniPanel.classList.remove('show');
     toast(n+' turni importati');
     render();
   }catch(err){toast('Errore: file .Shifter non valido');}

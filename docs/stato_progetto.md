@@ -1,7 +1,16 @@
 # DIARIO_BORDO — Stato Progetto
 
 **Data:** 2026-07-15
-**Fase:** v1 DEPLOYED su GitHub Pages — da installare su telefono
+**Fase:** v4 DEPLOYED — turni + preset da testare su telefono
+
+## v4 (2026-07-15) — turni di lavoro
+- Import backup .Shifter (SQLite, sql.js vendored) — testato su file reale: 3412 turni
+- Fascia da ora inizio: 05–11 mattina / 12–18 pomeriggio / 19–04 notte; Off/Vacanza/Close = nessuna
+- Badge turno header + rota nel calendario + long-press giorno → cambio turno manuale
+- Preset task per fascia (menu → Task per turno), auto-seed oggi 1×/giorno, tag #turno
+- Navigazione futuro sbloccata; backup esteso {tasks,shifts,presets}
+- Spec: docs/superpowers/specs/2026-07-15-turni-preset-design.md
+- v3 inclusa: auto-reload aggiornamenti (da prossima release: 1 sola apertura)
 
 ## Deploy
 - Repo pubblico: https://github.com/persiano8787/diario-di-bordo

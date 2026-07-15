@@ -111,23 +111,23 @@ main{flex:1;overflow-y:auto;padding:8px 14px 14px;-webkit-overflow-scrolling:tou
 
 .composer{
   background:var(--card);border-top:1px solid var(--line);
-  padding:10px 12px calc(env(safe-area-inset-bottom) + 10px);
+  padding:10px 12px;
   display:flex;gap:9px;align-items:flex-end;
 }
-#input{
+#input,.grow-input{
   flex:1;background:var(--paper);border:1px solid var(--line);
   border-radius:12px;padding:12px 14px;font-size:1rem;color:var(--ink);
   font-family:inherit;resize:none;max-height:120px;min-height:46px;line-height:1.35;
   outline:none;transition:border .15s;
 }
-#input:focus{border-color:var(--accent)}
-#send{
+#input:focus,.grow-input:focus{border-color:var(--accent)}
+#send,.send-btn{
   background:var(--accent);color:#fff;border:none;
   width:46px;height:46px;border-radius:12px;font-size:1.3rem;
   cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;
   transition:transform .1s;
 }
-#send:active{transform:scale(.9)}
+#send:active,.send-btn:active{transform:scale(.9)}
 
 .panel{
   position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20;
@@ -212,6 +212,32 @@ textarea.preset{
 }
 .hint{font-size:.72rem;color:var(--ink-soft);margin-top:6px}
 .cal-nav.active{background:var(--accent);color:#fff}
+.view{flex:1;display:flex;flex-direction:column;min-height:0}
+.view.hide{display:none}
+.tabbar{
+  display:flex;background:var(--card);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);z-index:6;
+}
+.tab{
+  flex:1;background:none;border:none;color:var(--ink-soft);
+  font-size:.72rem;font-family:inherit;font-weight:500;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 0 5px;
+}
+.tab .tic{font-size:1.3rem;line-height:1.2}
+.tab.active{color:var(--accent);font-weight:700}
+.cat-head{
+  font-size:.72rem;font-weight:700;color:var(--accent);
+  letter-spacing:.5px;text-transform:uppercase;margin:12px 2px 2px;
+}
+.fullpanel{
+  position:fixed;inset:0;background:var(--paper);z-index:30;
+  display:none;flex-direction:column;
+}
+.fullpanel.show{display:flex}
+.note-body{
+  flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;
+  padding:12px 14px calc(env(safe-area-inset-bottom) + 12px);
+}
 .sheet-input{
   width:100%;background:var(--card);border:1px solid var(--line);
   border-radius:12px;padding:11px 13px;font-size:1rem;color:var(--ink);
@@ -221,6 +247,7 @@ textarea.preset{
 </style>
 </head>
 <body>
+<div class="view" id="viewDiario">
 <header>
   <div class="date-nav">
     <button class="arrow" id="prevDay">‹</button>
@@ -251,6 +278,33 @@ textarea.preset{
   <textarea id="input" rows="1" placeholder="Scrivi o detta una nota…" enterkeyhint="send"></textarea>
   <button id="send">↑</button>
 </div>
+</div><!-- /viewDiario -->
+
+<div class="view hide" id="viewAppunti">
+  <header>
+    <div class="date-nav">
+      <div>
+        <h1>Appunti</h1>
+        <div class="sub" id="notesCount"></div>
+      </div>
+    </div>
+    <div class="hbtns">
+      <button class="icon-btn" id="noteSearchBtn">⌕</button>
+      <button class="icon-btn" id="menuBtn2">☰</button>
+    </div>
+  </header>
+  <main>
+    <div class="tasks" id="notesList"></div>
+  </main>
+  <div class="composer">
+    <button class="primary-btn" id="noteAddBtn" style="margin-top:0">+ Nuovo appunto</button>
+  </div>
+</div><!-- /viewAppunti -->
+
+<nav class="tabbar">
+  <button class="tab active" id="tabDiario"><span class="tic">📔</span>Diario</button>
+  <button class="tab" id="tabAppunti"><span class="tic">📄</span>Appunti</button>
+</nav>
 
 <!-- Menu sheet -->
 <div class="panel" id="menuPanel">
@@ -259,12 +313,64 @@ textarea.preset{
     <div class="menu-row" id="calRow"><span class="ic">📅</span><span>Calendario</span></div>
     <div class="menu-row" id="presetRow"><span class="ic">📋</span><span>Task per turno</span></div>
     <div class="menu-row" id="turniRow"><span class="ic">📆</span><span>Turni</span></div>
+    <div class="menu-row" id="settingsRow"><span class="ic">⚙️</span><span>Impostazioni</span></div>
     <input type="file" id="shifterFile" style="display:none">
+  </div>
+</div>
+
+<!-- Settings sheet -->
+<div class="panel" id="settingsPanel">
+  <div class="sheet">
+    <h2>Impostazioni</h2>
     <div class="menu-row" id="themeRow"><span class="ic" id="themeIc">🌙</span><span id="themeLabel">Tema scuro</span></div>
     <div class="menu-row" id="exportJsonRow"><span class="ic">💾</span><span>Esporta backup (JSON)</span></div>
     <div class="menu-row" id="exportMdRow"><span class="ic">📄</span><span>Esporta diario leggibile (Markdown)</span></div>
     <div class="menu-row" id="importRow"><span class="ic">📥</span><span>Importa backup</span></div>
     <input type="file" id="importFile" accept=".json" style="display:none">
+  </div>
+</div>
+
+<!-- Note editor (fullscreen) -->
+<div class="fullpanel" id="notePanel">
+  <header>
+    <div class="date-nav">
+      <button class="arrow" id="noteBack">‹</button>
+      <h1 style="font-size:1rem" id="notePanelTitle">Appunto</h1>
+    </div>
+    <div class="hbtns">
+      <button class="icon-btn" id="noteDelBtn">🗑</button>
+    </div>
+  </header>
+  <div class="note-body">
+    <input type="text" id="noteTitle" class="sheet-input" placeholder="Titolo">
+    <input type="text" id="noteCat" class="sheet-input" placeholder="Categoria (es. Spesa)" list="catList">
+    <datalist id="catList"></datalist>
+    <textarea id="noteText" class="preset" style="flex:1;min-height:0;resize:none;display:none"></textarea>
+    <div id="noteBodyList" style="flex:1;overflow-y:auto;display:none">
+      <div class="tasks" id="noteItems"></div>
+    </div>
+    <div id="noteItemComposer" style="display:none;gap:9px;align-items:flex-end">
+      <textarea id="noteItemInput" class="grow-input" rows="1" placeholder="Aggiungi voce…" enterkeyhint="send"></textarea>
+      <button class="send-btn" id="noteItemAdd">↑</button>
+    </div>
+  </div>
+</div>
+
+<!-- New note type chooser -->
+<div class="panel" id="noteTypePanel">
+  <div class="sheet">
+    <h2>Nuovo appunto</h2>
+    <div class="menu-row" id="newNoteText"><span class="ic">📝</span><span>Testo <span class="hint" style="display:block">Diete, guide, appunti liberi</span></span></div>
+    <div class="menu-row" id="newNoteList"><span class="ic">☑</span><span>Lista <span class="hint" style="display:block">Spesa, checklist con voci spuntabili</span></span></div>
+  </div>
+</div>
+
+<!-- Notes search sheet -->
+<div class="panel" id="noteSearchPanel">
+  <div class="sheet">
+    <h2>Cerca negli appunti</h2>
+    <input type="text" id="noteSearchInput" placeholder="Cerca titolo o contenuto…" class="sheet-input" style="margin-bottom:12px">
+    <div id="noteSearchResults"></div>
   </div>
 </div>
 
@@ -282,11 +388,11 @@ textarea.preset{
   <div class="sheet">
     <h2>Task per turno</h2>
     <div class="hint">Una riga = un task. Inseriti automaticamente all'apertura della pagina di oggi in base al turno.</div>
-    <div class="preset-label"><span class="cal-shift f-mattina">Mattina</span> 05:00–11:59</div>
+    <div class="preset-label"><span class="cal-shift f-mattina">Mattina</span> turno 07:00–15:00</div>
     <textarea class="preset" id="presetM" placeholder="Es. controllo float tavoli"></textarea>
-    <div class="preset-label"><span class="cal-shift f-pomeriggio">Pomeriggio</span> 12:00–18:59</div>
+    <div class="preset-label"><span class="cal-shift f-pomeriggio">Pomeriggio</span> turno 15:00–23:00</div>
     <textarea class="preset" id="presetP"></textarea>
-    <div class="preset-label"><span class="cal-shift f-notte">Notte</span> 19:00–04:59</div>
+    <div class="preset-label"><span class="cal-shift f-notte">Notte</span> turno 23:00–07:00</div>
     <textarea class="preset" id="presetN"></textarea>
     <button class="primary-btn" id="presetSave">Salva</button>
   </div>
@@ -385,7 +491,7 @@ function shortDate(k){
 /* ---------- IndexedDB ---------- */
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,2);
+    const r=indexedDB.open(DB_NAME,3);
     r.onupgradeneeded=e=>{
       const d=e.target.result;
       if(!d.objectStoreNames.contains(STORE)){
@@ -393,6 +499,7 @@ function openDB(){
         s.createIndex('day','day');
       }
       if(!d.objectStoreNames.contains('shifts'))d.createObjectStore('shifts',{keyPath:'day'});
+      if(!d.objectStoreNames.contains('notes'))d.createObjectStore('notes',{keyPath:'id',autoIncrement:true});
     };
     r.onsuccess=e=>{db=e.target.result;res();};
     r.onerror=e=>rej(e);
@@ -561,7 +668,11 @@ document.getElementById('todayBtn').onclick=()=>{viewDate=todayKey();render();};
 /* ---------- menu ---------- */
 const menuPanel=document.getElementById('menuPanel');
 document.getElementById('menuBtn').onclick=()=>menuPanel.classList.add('show');
+document.getElementById('menuBtn2').onclick=()=>menuPanel.classList.add('show');
 menuPanel.onclick=e=>{if(e.target===menuPanel)menuPanel.classList.remove('show');};
+const settingsPanel=document.getElementById('settingsPanel');
+document.getElementById('settingsRow').onclick=()=>{menuPanel.classList.remove('show');settingsPanel.classList.add('show');};
+settingsPanel.onclick=e=>{if(e.target===settingsPanel)settingsPanel.classList.remove('show');};
 function updateThemeUI(){
   document.getElementById('themeIc').textContent=theme==='dark'?'☀️':'🌙';
   document.getElementById('themeLabel').textContent=theme==='dark'?'Tema chiaro':'Tema scuro';
@@ -579,10 +690,10 @@ function download(name,content,type){
   URL.revokeObjectURL(url);
 }
 document.getElementById('exportJsonRow').onclick=async()=>{
-  const payload={v:2,tasks:await getAll(),shifts:await getAllShifts(),
-    presets:getPresets(),shiftTypes:getShiftTypes()};
+  const payload={v:3,tasks:await getAll(),shifts:await getAllShifts(),
+    notes:await getAllNotes(),presets:getPresets(),shiftTypes:getShiftTypes()};
   download('diario-backup-'+todayKey()+'.json',JSON.stringify(payload,null,2),'application/json');
-  menuPanel.classList.remove('show');toast('Backup JSON scaricato');
+  settingsPanel.classList.remove('show');toast('Backup JSON scaricato');
 };
 document.getElementById('exportMdRow').onclick=async()=>{
   const all=(await getAll()).sort((a,b)=>a.day.localeCompare(b.day)||a.id-b.id);
@@ -594,7 +705,7 @@ document.getElementById('exportMdRow').onclick=async()=>{
     md+='\n';
   });
   download('diario-'+todayKey()+'.md',md,'text/markdown');
-  menuPanel.classList.remove('show');toast('Diario Markdown scaricato');
+  settingsPanel.classList.remove('show');toast('Diario Markdown scaricato');
 };
 document.getElementById('importRow').onclick=()=>document.getElementById('importFile').click();
 document.getElementById('importFile').onchange=e=>{
@@ -607,11 +718,12 @@ document.getElementById('importFile').onchange=e=>{
       for(const t of tasks){delete t.id;await addTask(t);}
       if(!Array.isArray(data)){
         for(const s of (data.shifts||[]))await putShift(s);
+        for(const n of (data.notes||[])){delete n.id;await addNote(n);}
         if(data.presets)localStorage.setItem('shiftPresets',JSON.stringify(data.presets));
         if(data.shiftTypes)localStorage.setItem('shiftTypes',JSON.stringify(data.shiftTypes));
       }
       toast('Backup importato ('+tasks.length+' note)');
-      menuPanel.classList.remove('show');render();
+      settingsPanel.classList.remove('show');render();
     }catch(err){toast('File non valido');}
   };
   r.readAsText(f);
@@ -860,6 +972,171 @@ document.getElementById('shifterFile').onchange=async e=>{
     render();
   }catch(err){toast('Errore: file .Shifter non valido');}
 };
+
+/* ---------- tabs ---------- */
+function showTab(t){
+  document.getElementById('viewDiario').classList.toggle('hide',t!=='diario');
+  document.getElementById('viewAppunti').classList.toggle('hide',t!=='appunti');
+  document.getElementById('tabDiario').classList.toggle('active',t==='diario');
+  document.getElementById('tabAppunti').classList.toggle('active',t==='appunti');
+  if(t==='appunti')renderNotes();
+}
+document.getElementById('tabDiario').onclick=()=>showTab('diario');
+document.getElementById('tabAppunti').onclick=()=>showTab('appunti');
+
+/* ---------- notes (appunti) ---------- */
+function addNote(n){return new Promise(res=>{const r=tx('readwrite','notes').add(n);r.onsuccess=()=>res(r.result);});}
+function putNote(n){return new Promise(res=>{tx('readwrite','notes').put(n).onsuccess=()=>res();});}
+function delNote(id){return new Promise(res=>{tx('readwrite','notes').delete(id).onsuccess=()=>res();});}
+function getAllNotes(){
+  return new Promise(res=>{
+    const out=[],c=tx('readonly','notes').openCursor();
+    c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else res(out);};
+  });
+}
+function notePreview(n){
+  if(n.tipo==='lista'){
+    const it=n.items||[];
+    return '☑ '+it.filter(i=>i.done).length+'/'+it.length+' voci';
+  }
+  return '📝 '+((n.testo||'').replace(/\s+/g,' ').trim().slice(0,60)||'vuoto');
+}
+async function renderNotes(){
+  const notes=await getAllNotes();
+  document.getElementById('notesCount').textContent=notes.length?notes.length+' appunti':'';
+  const list=document.getElementById('notesList');
+  list.innerHTML='';
+  if(!notes.length){
+    list.innerHTML='<div class="empty"><div class="big">📄</div>Nessun appunto.<br>Tocca "+ Nuovo appunto" qui sotto.</div>';
+    return;
+  }
+  const byCat={};
+  notes.forEach(n=>{const c=(n.categoria||'').trim()||'Senza categoria';(byCat[c]=byCat[c]||[]).push(n);});
+  Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'it')).forEach(cat=>{
+    const h=document.createElement('div');h.className='cat-head';h.textContent=cat;list.appendChild(h);
+    byCat[cat].sort((a,b)=>(b.mod||0)-(a.mod||0)).forEach(n=>{
+      const d=document.createElement('div');d.className='task';d.style.cursor='pointer';
+      d.innerHTML='<div class="task-body"><div class="task-text" style="font-weight:600"></div>'+
+        '<div class="task-meta"><span class="time"></span></div></div>';
+      d.querySelector('.task-text').textContent=n.titolo||'(senza titolo)';
+      d.querySelector('.time').textContent=notePreview(n)+' · '+shortDate(dateKey(new Date(n.mod||Date.now())));
+      d.onclick=()=>openNote(n.id);
+      list.appendChild(d);
+    });
+  });
+}
+
+/* editor appunto */
+const notePanel=document.getElementById('notePanel');
+let curNote=null,noteSaveT=null;
+async function openNote(id){
+  const notes=await getAllNotes();
+  curNote=notes.find(n=>n.id===id);
+  if(!curNote)return;
+  document.getElementById('noteTitle').value=curNote.titolo||'';
+  document.getElementById('noteCat').value=curNote.categoria||'';
+  const dl=document.getElementById('catList');dl.innerHTML='';
+  [...new Set(notes.map(n=>(n.categoria||'').trim()).filter(Boolean))].forEach(c=>{
+    const o=document.createElement('option');o.value=c;dl.appendChild(o);
+  });
+  const isList=curNote.tipo==='lista';
+  document.getElementById('notePanelTitle').textContent=isList?'Lista':'Appunto';
+  document.getElementById('noteText').style.display=isList?'none':'block';
+  document.getElementById('noteBodyList').style.display=isList?'block':'none';
+  document.getElementById('noteItemComposer').style.display=isList?'flex':'none';
+  if(isList)renderNoteItems();
+  else document.getElementById('noteText').value=curNote.testo||'';
+  notePanel.classList.add('show');
+}
+function renderNoteItems(){
+  const box=document.getElementById('noteItems');box.innerHTML='';
+  (curNote.items||[]).forEach((it,i)=>{
+    const div=document.createElement('div');div.className='task'+(it.done?' done':'');
+    div.innerHTML='<div class="check">'+(it.done?'✓':'')+'</div>'+
+      '<div class="task-body"><div class="task-text"></div></div><button class="del">✕</button>';
+    div.querySelector('.task-text').textContent=it.t;
+    div.querySelector('.check').onclick=async()=>{it.done=!it.done;await saveCurNote();renderNoteItems();};
+    div.querySelector('.del').onclick=async()=>{curNote.items.splice(i,1);await saveCurNote();renderNoteItems();};
+    box.appendChild(div);
+  });
+}
+async function saveCurNote(){
+  if(!curNote)return;
+  curNote.titolo=document.getElementById('noteTitle').value.trim();
+  curNote.categoria=document.getElementById('noteCat').value.trim();
+  if(curNote.tipo!=='lista')curNote.testo=document.getElementById('noteText').value;
+  curNote.mod=Date.now();
+  await putNote(curNote);
+}
+['noteTitle','noteCat','noteText'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    clearTimeout(noteSaveT);noteSaveT=setTimeout(saveCurNote,600);
+  });
+});
+document.getElementById('noteItemAdd').onclick=addNoteItem;
+document.getElementById('noteItemInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();addNoteItem();}
+});
+async function addNoteItem(){
+  const inp=document.getElementById('noteItemInput');
+  const t=inp.value.trim();if(!t||!curNote)return;
+  (curNote.items=curNote.items||[]).push({t,done:false});
+  inp.value='';
+  await saveCurNote();renderNoteItems();
+  document.getElementById('noteBodyList').scrollTop=999999;
+}
+document.getElementById('noteBack').onclick=async()=>{
+  clearTimeout(noteSaveT);await saveCurNote();
+  curNote=null;notePanel.classList.remove('show');renderNotes();
+};
+document.getElementById('noteDelBtn').onclick=async()=>{
+  if(!curNote)return;
+  if(!confirm('Eliminare questo appunto?'))return;
+  await delNote(curNote.id);
+  curNote=null;notePanel.classList.remove('show');renderNotes();toast('Appunto eliminato');
+};
+
+/* nuovo appunto */
+const noteTypePanel=document.getElementById('noteTypePanel');
+document.getElementById('noteAddBtn').onclick=()=>noteTypePanel.classList.add('show');
+noteTypePanel.onclick=e=>{if(e.target===noteTypePanel)noteTypePanel.classList.remove('show');};
+async function newNote(tipo){
+  noteTypePanel.classList.remove('show');
+  const id=await addNote({tipo,titolo:'',categoria:'',testo:'',items:[],mod:Date.now()});
+  openNote(id);
+}
+document.getElementById('newNoteText').onclick=()=>newNote('testo');
+document.getElementById('newNoteList').onclick=()=>newNote('lista');
+
+/* ricerca appunti */
+const noteSearchPanel=document.getElementById('noteSearchPanel');
+document.getElementById('noteSearchBtn').onclick=()=>{
+  noteSearchPanel.classList.add('show');
+  document.getElementById('noteSearchInput').focus();
+};
+noteSearchPanel.onclick=e=>{if(e.target===noteSearchPanel)noteSearchPanel.classList.remove('show');};
+document.getElementById('noteSearchInput').addEventListener('input',async e=>{
+  const q=e.target.value.trim().toLowerCase();
+  const box=document.getElementById('noteSearchResults');
+  if(!q){box.innerHTML='';return;}
+  const hit=(await getAllNotes()).filter(n=>{
+    const hay=(n.titolo||'')+' '+(n.categoria||'')+' '+(n.testo||'')+' '+((n.items||[]).map(i=>i.t).join(' '));
+    return hay.toLowerCase().includes(q);
+  }).sort((a,b)=>(b.mod||0)-(a.mod||0));
+  box.innerHTML=hit.length?'':'<div class="empty" style="padding:20px">Nessun risultato.</div>';
+  hit.slice(0,40).forEach(n=>{
+    const d=document.createElement('div');d.className='search-result';
+    d.innerHTML='<div class="sr-date"></div><div class="sr-text"></div>';
+    d.querySelector('.sr-date').textContent=(n.categoria||'Senza categoria');
+    d.querySelector('.sr-text').textContent=(n.titolo||'(senza titolo)')+' — '+notePreview(n);
+    d.onclick=()=>{
+      noteSearchPanel.classList.remove('show');
+      document.getElementById('noteSearchInput').value='';box.innerHTML='';
+      openNote(n.id);
+    };
+    box.appendChild(d);
+  });
+});
 
 /* ---------- toast ---------- */
 let toastT;

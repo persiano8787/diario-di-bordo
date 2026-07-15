@@ -581,7 +581,9 @@ function fasciaOf(code,start,end){
   return'notte';
 }
 function getShiftTypes(){
-  try{const t=JSON.parse(localStorage.getItem('shiftTypes'));if(t&&t.length)return t;}catch(e){}
+  // chiave presente (anche lista vuota, es. dopo "Elimina dati") = verità;
+  // solo chiave assente (prima installazione) usa i predefiniti
+  try{const t=JSON.parse(localStorage.getItem('shiftTypes'));if(Array.isArray(t))return t;}catch(e){}
   return[
     {code:'7',start:'07:00',end:'15:00'},{code:'15',start:'15:00',end:'23:00'},
     {code:'23',start:'23:00',end:'07:00'},{code:'11',start:'11:00',end:'21:00'},
@@ -1251,7 +1253,7 @@ document.getElementById('wipeRow').onclick=async()=>{
   for(const st of [STORE,'shifts','notes'])
     await new Promise(r=>{tx('readwrite',st).clear().onsuccess=()=>r();});
   localStorage.removeItem('shiftPresets');
-  localStorage.removeItem('shiftTypes');
+  localStorage.setItem('shiftTypes','[]');
   pClose(settingsPanel);
   render();renderNotes();
   toast('Tutti i dati eliminati');

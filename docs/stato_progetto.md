@@ -1,7 +1,13 @@
 # DIARIO_BORDO — Stato Progetto
 
 **Data:** 2026-07-15
-**Fase:** v6 DEPLOYED — tab Diario/Appunti
+**Fase:** v7 DEPLOYED — back Android, multi-selezione appunti
+
+## v7 (2026-07-15)
+- History-stack pannelli: back hardware chiude pannello in cima, sottomenu impilati, back in Appunti → Diario
+- Appunti: long-press → selezione multipla (elimina / sposta categoria / salva .md); titolo+categoria nella barra superiore editor
+- Impostazioni: Elimina tutti i dati (doppia conferma)
+- Turni: contiene Task per turno; esporta/importa turni JSON proprio ({tipo:'turni',shiftTypes,shifts}); RIMOSSO import Shifter + sql.js
 
 ## v6 (2026-07-15) — appunti + riorganizzazione
 - Tabbar: Diario | Appunti. Appunti = note senza data: tipo Testo o Lista (spuntabile), categorie libere, ricerca dedicata, editor fullscreen autosave. Store `notes` (DB v3)

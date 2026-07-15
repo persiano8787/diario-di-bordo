@@ -1,7 +1,7 @@
 /* Diario di Bordo — service worker
    Strategia: stale-while-revalidate. Serve subito dalla cache (offline OK),
    aggiorna in background dalla rete: nuova versione al prossimo avvio. */
-const CACHE = 'diario-v7';
+const CACHE = 'diario-v8';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

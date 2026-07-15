@@ -1,7 +1,10 @@
 # DIARIO_BORDO — Stato Progetto
 
 **Data:** 2026-07-15
-**Fase:** v7 DEPLOYED — back Android, multi-selezione appunti
+**Fase:** v8 DEPLOYED — stabile, testata su telefono
+
+## v8 (2026-07-15)
+- Fix: lista tipi turno vuota resta vuota (Elimina dati o cancellazione manuale); predefiniti solo a prima installazione. Utente crea i propri tipi.
 
 ## v7 (2026-07-15)
 - History-stack pannelli: back hardware chiude pannello in cima, sottomenu impilati, back in Appunti → Diario

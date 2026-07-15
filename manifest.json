@@ -1,0 +1,19 @@
+{
+  "name": "Diario di Bordo",
+  "short_name": "Diario",
+  "description": "Diario giornaliero di task",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f5f1e8",
+  "theme_color": "#1e3a5f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%231e3a5f'/%3E%3Ctext x='96' y='128' font-size='96' text-anchor='middle' fill='%23f5f1e8'%3E%E2%9C%93%3C/text%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

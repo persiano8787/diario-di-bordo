@@ -189,6 +189,28 @@ main{flex:1;overflow-y:auto;padding:8px 14px 14px;-webkit-overflow-scrolling:tou
 .cal-dot{width:6px;height:6px;border-radius:50%}
 .cal-dot.pend{background:var(--carried)}
 .cal-dot.alldone{background:var(--done)}
+.shift-badge{
+  display:inline-block;font-size:.66rem;font-weight:600;
+  padding:2px 8px;border-radius:12px;margin-top:3px;
+  background:rgba(255,255,255,.18);color:#fff;
+}
+.cal-shift{font-size:.56rem;font-weight:700;line-height:1.4;padding:1px 5px;border-radius:6px}
+.f-mattina{background:#f5d78e;color:#6b4e00}
+.f-pomeriggio{background:#9ec5f0;color:#0d3a6b}
+.f-notte{background:#b3a6e8;color:#2a1d66}
+.f-none{background:var(--line);color:var(--ink-soft)}
+.preset-label{font-size:.82rem;font-weight:600;margin:12px 0 5px;display:flex;align-items:center;gap:7px;color:var(--ink)}
+textarea.preset{
+  width:100%;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:10px 12px;font-size:.92rem;color:var(--ink);
+  font-family:inherit;min-height:72px;resize:vertical;outline:none;
+}
+.primary-btn{
+  width:100%;background:var(--accent);color:#fff;border:none;
+  padding:13px;border-radius:12px;font-size:.95rem;font-weight:600;
+  cursor:pointer;margin-top:16px;
+}
+.hint{font-size:.72rem;color:var(--ink-soft);margin-top:6px}
 </style>
 </head>
 <body>
@@ -198,6 +220,7 @@ main{flex:1;overflow-y:auto;padding:8px 14px 14px;-webkit-overflow-scrolling:tou
     <button class="date-block" id="dateBlock">
       <h1 id="dayLabel">Oggi</h1>
       <div class="sub" id="dayDate"></div>
+      <span class="shift-badge" id="shiftBadge" style="display:none"></span>
     </button>
     <button class="arrow" id="nextDay">›</button>
     <button class="today-btn" id="todayBtn" style="display:none">oggi</button>
@@ -227,6 +250,9 @@ main{flex:1;overflow-y:auto;padding:8px 14px 14px;-webkit-overflow-scrolling:tou
   <div class="sheet">
     <h2>Menu</h2>
     <div class="menu-row" id="calRow"><span class="ic">📅</span><span>Calendario</span></div>
+    <div class="menu-row" id="presetRow"><span class="ic">📋</span><span>Task per turno</span></div>
+    <div class="menu-row" id="importShiftsRow"><span class="ic">📆</span><span>Importa turni (.Shifter)</span></div>
+    <input type="file" id="shifterFile" style="display:none">
     <div class="menu-row" id="themeRow"><span class="ic" id="themeIc">🌙</span><span id="themeLabel">Tema scuro</span></div>
     <div class="menu-row" id="exportJsonRow"><span class="ic">💾</span><span>Esporta backup (JSON)</span></div>
     <div class="menu-row" id="exportMdRow"><span class="ic">📄</span><span>Esporta diario leggibile (Markdown)</span></div>
@@ -241,6 +267,29 @@ main{flex:1;overflow-y:auto;padding:8px 14px 14px;-webkit-overflow-scrolling:tou
     <h2>Cerca</h2>
     <input type="text" id="searchInput" placeholder="Cerca testo o #tag…">
     <div id="searchResults"></div>
+  </div>
+</div>
+
+<!-- Preset sheet -->
+<div class="panel" id="presetPanel">
+  <div class="sheet">
+    <h2>Task per turno</h2>
+    <div class="hint">Una riga = un task. Inseriti automaticamente all'apertura della pagina di oggi in base al turno.</div>
+    <div class="preset-label"><span class="cal-shift f-mattina">Mattina</span> 05:00–11:59</div>
+    <textarea class="preset" id="presetM" placeholder="Es. controllo float tavoli"></textarea>
+    <div class="preset-label"><span class="cal-shift f-pomeriggio">Pomeriggio</span> 12:00–18:59</div>
+    <textarea class="preset" id="presetP"></textarea>
+    <div class="preset-label"><span class="cal-shift f-notte">Notte</span> 19:00–04:59</div>
+    <textarea class="preset" id="presetN"></textarea>
+    <button class="primary-btn" id="presetSave">Salva</button>
+  </div>
+</div>
+
+<!-- Shift picker sheet -->
+<div class="panel" id="shiftPickPanel">
+  <div class="sheet">
+    <h2 id="shiftPickTitle">Turno</h2>
+    <div id="shiftPickList"></div>
   </div>
 </div>
 
@@ -285,16 +334,20 @@ function relLabel(k){
 /* ---------- IndexedDB ---------- */
 function openDB(){
   return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,1);
+    const r=indexedDB.open(DB_NAME,2);
     r.onupgradeneeded=e=>{
-      const s=e.target.result.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
-      s.createIndex('day','day');
+      const d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE)){
+        const s=d.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});
+        s.createIndex('day','day');
+      }
+      if(!d.objectStoreNames.contains('shifts'))d.createObjectStore('shifts',{keyPath:'day'});
     };
     r.onsuccess=e=>{db=e.target.result;res();};
     r.onerror=e=>rej(e);
   });
 }
-function tx(mode){return db.transaction(STORE,mode).objectStore(STORE);}
+function tx(mode,store){return db.transaction(store||STORE,mode).objectStore(store||STORE);}
 function getByDay(day){
   return new Promise(res=>{
     const out=[],idx=tx('readonly').index('day').openCursor(IDBKeyRange.only(day));
@@ -311,6 +364,49 @@ function addTask(t){return new Promise(res=>{const r=tx('readwrite').add(t);r.on
 function putTask(t){return new Promise(res=>{tx('readwrite').put(t).onsuccess=()=>res();});}
 function delTask(id){return new Promise(res=>{tx('readwrite').delete(id).onsuccess=()=>res();});}
 
+/* ---------- shifts ---------- */
+function getShift(day){return new Promise(res=>{const r=tx('readonly','shifts').get(day);r.onsuccess=()=>res(r.result||null);});}
+function putShift(s){return new Promise(res=>{tx('readwrite','shifts').put(s).onsuccess=()=>res();});}
+function delShift(day){return new Promise(res=>{tx('readwrite','shifts').delete(day).onsuccess=()=>res();});}
+function getAllShifts(){
+  return new Promise(res=>{
+    const out=[],c=tx('readonly','shifts').openCursor();
+    c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else res(out);};
+  });
+}
+const NO_FASCIA=['off','close','vancanza','vacanza','a/l'];
+const FASCIA_NAME={mattina:'Mattina',pomeriggio:'Pomeriggio',notte:'Notte'};
+function fasciaOf(code,start,end){
+  if(!start||start===end)return null;
+  if(NO_FASCIA.includes(String(code).trim().toLowerCase()))return null;
+  const h=parseInt(start,10);
+  if(isNaN(h))return null;
+  if(h>=5&&h<12)return'mattina';
+  if(h>=12&&h<19)return'pomeriggio';
+  return'notte';
+}
+function getShiftTypes(){
+  try{const t=JSON.parse(localStorage.getItem('shiftTypes'));if(t&&t.length)return t;}catch(e){}
+  return[
+    {code:'7',start:'07:00',end:'15:00'},{code:'15',start:'15:00',end:'23:00'},
+    {code:'23',start:'23:00',end:'07:00'},{code:'11',start:'11:00',end:'21:00'},
+    {code:'21',start:'21:00',end:'07:00'},{code:'Tr',start:'10:00',end:'18:00'},
+    {code:'Off',start:'00:00',end:'00:00'}
+  ];
+}
+function getPresets(){try{return JSON.parse(localStorage.getItem('shiftPresets'))||{};}catch(e){return{};}}
+/* inserisce i task della fascia nella pagina di oggi, una sola volta */
+async function seedPresets(){
+  const s=await getShift(todayKey());
+  if(!s)return null;
+  if(s.seeded||!s.fascia)return s;
+  const list=getPresets()[s.fascia]||[];
+  if(!list.length)return s; // niente flag: se configuri i preset dopo, il seed avviene alla prossima apertura
+  for(const p of list)await addTask({text:p+' #turno',day:todayKey(),done:false,carried:false,time:nowTime()});
+  s.seeded=true;await putShift(s);
+  return s;
+}
+
 /* ---------- tags ---------- */
 function extractTags(text){const m=text.match(/#[\wàèéìòù]+/gi);return m?[...new Set(m.map(t=>t.slice(1)))]:[];}
 function renderText(text){
@@ -322,11 +418,19 @@ async function render(){
   const isToday=viewDate===todayKey();
   document.getElementById('dayLabel').textContent=relLabel(viewDate);
   document.getElementById('dayDate').textContent=prettyDate(viewDate);
-  document.getElementById('nextDay').disabled = viewDate>=todayKey();
   document.getElementById('todayBtn').style.display=isToday?'none':'block';
 
   if(isToday) await checkCarried();
   else document.getElementById('carriedBanner').classList.remove('show');
+
+  const sh=isToday?await seedPresets():await getShift(viewDate);
+  const badge=document.getElementById('shiftBadge');
+  if(sh){
+    badge.style.display='inline-block';
+    badge.textContent='Turno '+sh.code+
+      (sh.start&&sh.start!==sh.end?' · '+sh.start+'–'+sh.end:'')+
+      (sh.fascia?' · '+FASCIA_NAME[sh.fascia]:'');
+  }else badge.style.display='none';
 
   const tasks=await getByDay(viewDate);
   const list=document.getElementById('taskList');
@@ -400,7 +504,7 @@ input.addEventListener('input',()=>{input.style.height='auto';input.style.height
 
 /* ---------- nav ---------- */
 document.getElementById('prevDay').onclick=()=>{viewDate=shiftDay(viewDate,-1);render();};
-document.getElementById('nextDay').onclick=()=>{if(viewDate<todayKey()){viewDate=shiftDay(viewDate,1);render();}};
+document.getElementById('nextDay').onclick=()=>{viewDate=shiftDay(viewDate,1);render();};
 document.getElementById('todayBtn').onclick=()=>{viewDate=todayKey();render();};
 
 /* ---------- menu ---------- */
@@ -424,8 +528,9 @@ function download(name,content,type){
   URL.revokeObjectURL(url);
 }
 document.getElementById('exportJsonRow').onclick=async()=>{
-  const all=await getAll();
-  download('diario-backup-'+todayKey()+'.json',JSON.stringify(all,null,2),'application/json');
+  const payload={v:2,tasks:await getAll(),shifts:await getAllShifts(),
+    presets:getPresets(),shiftTypes:getShiftTypes()};
+  download('diario-backup-'+todayKey()+'.json',JSON.stringify(payload,null,2),'application/json');
   menuPanel.classList.remove('show');toast('Backup JSON scaricato');
 };
 document.getElementById('exportMdRow').onclick=async()=>{
@@ -447,8 +552,14 @@ document.getElementById('importFile').onchange=e=>{
   r.onload=async()=>{
     try{
       const data=JSON.parse(r.result);
-      for(const t of data){delete t.id;await addTask(t);}
-      toast('Backup importato ('+data.length+' note)');
+      const tasks=Array.isArray(data)?data:(data.tasks||[]); // retrocompatibile col vecchio formato array
+      for(const t of tasks){delete t.id;await addTask(t);}
+      if(!Array.isArray(data)){
+        for(const s of (data.shifts||[]))await putShift(s);
+        if(data.presets)localStorage.setItem('shiftPresets',JSON.stringify(data.presets));
+        if(data.shiftTypes)localStorage.setItem('shiftTypes',JSON.stringify(data.shiftTypes));
+      }
+      toast('Backup importato ('+tasks.length+' note)');
       menuPanel.classList.remove('show');render();
     }catch(err){toast('File non valido');}
   };
@@ -492,10 +603,9 @@ async function renderCal(){
   const all=await getAll();
   const map={};
   all.forEach(t=>{const m=map[t.day]=map[t.day]||{tot:0,done:0};m.tot++;if(t.done)m.done++;});
+  const smap={};
+  (await getAllShifts()).forEach(s=>smap[s.day]=s);
   document.getElementById('calTitle').textContent=MONTHS_IT[calM]+' '+calY;
-  // niente navigazione oltre il mese corrente
-  const now=new Date();
-  document.getElementById('calNext').disabled=(calY>now.getFullYear())||(calY===now.getFullYear()&&calM>=now.getMonth());
   const grid=document.getElementById('calGrid');
   grid.innerHTML='';
   ['L','M','M','G','V','S','D'].forEach(d=>{
@@ -508,8 +618,14 @@ async function renderCal(){
     const key=dateKey(new Date(calY,calM,day));
     const cell=document.createElement('button');
     cell.className='cal-cell'+(key===todayKey()?' today':'')+(key===viewDate?' sel':'');
-    cell.disabled=key>todayKey();
     const num=document.createElement('span');num.textContent=day;cell.appendChild(num);
+    const sh=smap[key];
+    if(sh){
+      const lb=document.createElement('span');
+      lb.className='cal-shift f-'+(sh.fascia||'none');
+      lb.textContent=sh.code;
+      cell.appendChild(lb);
+    }
     const info=map[key];
     if(info){
       const dot=document.createElement('span');
@@ -517,9 +633,95 @@ async function renderCal(){
       cell.appendChild(dot);
     }
     cell.onclick=()=>{viewDate=key;calPanel.classList.remove('show');render();};
+    cell.oncontextmenu=e=>{e.preventDefault();openShiftPicker(key);}; // long-press su Android
     grid.appendChild(cell);
   }
 }
+
+/* ---------- shift picker (long-press su giorno) ---------- */
+const shiftPickPanel=document.getElementById('shiftPickPanel');
+let pickDay=null;
+function openShiftPicker(day){
+  pickDay=day;
+  document.getElementById('shiftPickTitle').textContent='Turno · '+prettyDate(day);
+  const list=document.getElementById('shiftPickList');
+  list.innerHTML='';
+  const mk=(html,fn)=>{
+    const r=document.createElement('div');r.className='menu-row';r.innerHTML=html;r.onclick=fn;list.appendChild(r);
+  };
+  getShiftTypes().forEach(t=>{
+    const f=fasciaOf(t.code,t.start,t.end);
+    mk('<span class="ic"><span class="cal-shift f-'+(f||'none')+'">'+t.code+'</span></span><span>'+
+       (t.start&&t.start!==t.end?t.start+'–'+t.end+' ':'')+(f?'· '+FASCIA_NAME[f]:'')+'</span>',
+      async()=>{
+        const prev=await getShift(pickDay);
+        await putShift({day:pickDay,code:t.code,start:t.start,end:t.end,fascia:f,seeded:prev?prev.seeded:false});
+        shiftPickPanel.classList.remove('show');renderCal();render();
+      });
+  });
+  mk('<span class="ic">✕</span><span>Nessun turno</span>',
+    async()=>{await delShift(pickDay);shiftPickPanel.classList.remove('show');renderCal();render();});
+  shiftPickPanel.classList.add('show');
+}
+shiftPickPanel.onclick=e=>{if(e.target===shiftPickPanel)shiftPickPanel.classList.remove('show');};
+
+/* ---------- preset editor ---------- */
+const presetPanel=document.getElementById('presetPanel');
+document.getElementById('presetRow').onclick=()=>{
+  const p=getPresets();
+  document.getElementById('presetM').value=(p.mattina||[]).join('\n');
+  document.getElementById('presetP').value=(p.pomeriggio||[]).join('\n');
+  document.getElementById('presetN').value=(p.notte||[]).join('\n');
+  menuPanel.classList.remove('show');presetPanel.classList.add('show');
+};
+presetPanel.onclick=e=>{if(e.target===presetPanel)presetPanel.classList.remove('show');};
+document.getElementById('presetSave').onclick=()=>{
+  const g=id=>document.getElementById(id).value.split('\n').map(s=>s.trim()).filter(Boolean);
+  localStorage.setItem('shiftPresets',JSON.stringify({mattina:g('presetM'),pomeriggio:g('presetP'),notte:g('presetN')}));
+  presetPanel.classList.remove('show');toast('Task per turno salvati');render();
+};
+
+/* ---------- import Shifter (.Shifter = SQLite) ---------- */
+function loadSqlJs(){
+  return new Promise((res,rej)=>{
+    if(window.initSqlJs)return res();
+    const s=document.createElement('script');
+    s.src='./sql-wasm.js';s.onload=()=>res();s.onerror=()=>rej(new Error('sql.js'));
+    document.head.appendChild(s);
+  });
+}
+document.getElementById('importShiftsRow').onclick=()=>document.getElementById('shifterFile').click();
+document.getElementById('shifterFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  e.target.value='';
+  try{
+    toast('Leggo il file…');
+    await loadSqlJs();
+    const SQL=await initSqlJs({locateFile:n=>'./'+n});
+    const sdb=new SQL.Database(new Uint8Array(await f.arrayBuffer()));
+    const types={};
+    const tRes=sdb.exec('SELECT _id,texto,horaInicio1,horaFinal1 FROM tablaTurnos');
+    (tRes[0]?tRes[0].values:[]).forEach(([id,texto,h1,h2])=>{
+      types[id]={code:String(texto==null?id:texto),start:h1||'',end:h2||''};
+    });
+    localStorage.setItem('shiftTypes',JSON.stringify(Object.values(types)));
+    const dRes=sdb.exec('SELECT fecha,turno1 FROM dias WHERE turno1 IS NOT NULL');
+    let n=0;
+    for(const [fecha,t1] of (dRes[0]?dRes[0].values:[])){
+      const ty=types[t1];if(!ty)continue;
+      const s=String(fecha);if(!/^\d{8}$/.test(s))continue;
+      const day=s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);
+      const prev=await getShift(day);
+      await putShift({day,code:ty.code,start:ty.start,end:ty.end,
+        fascia:fasciaOf(ty.code,ty.start,ty.end),seeded:prev?prev.seeded:false});
+      n++;
+    }
+    sdb.close();
+    menuPanel.classList.remove('show');
+    toast(n+' turni importati');
+    render();
+  }catch(err){toast('Errore: file .Shifter non valido');}
+};
 
 /* ---------- toast ---------- */
 let toastT;
@@ -531,9 +733,15 @@ function toast(msg){
 /* ---------- boot ---------- */
 openDB().then(()=>{render();setTimeout(()=>input.focus(),300);});
 
-/* service worker for offline */
+/* service worker for offline + auto-update */
 if('serviceWorker'in navigator){
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  navigator.serviceWorker.register('./sw.js').then(reg=>reg.update()).catch(()=>{});
+  // quando un nuovo SW prende il controllo (nuova versione), ricarica una volta
+  const hadController=!!navigator.serviceWorker.controller;
+  let reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(hadController&&!reloaded){reloaded=true;toast('Aggiornamento…');setTimeout(()=>location.reload(),600);}
+  });
 }
 </script>
 </body>

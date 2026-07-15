@@ -1,7 +1,16 @@
 # DIARIO_BORDO — Stato Progetto
 
 **Data:** 2026-07-15
-**Fase:** v4 DEPLOYED — turni + preset da testare su telefono
+**Fase:** v6 DEPLOYED — tab Diario/Appunti
+
+## v6 (2026-07-15) — appunti + riorganizzazione
+- Tabbar: Diario | Appunti. Appunti = note senza data: tipo Testo o Lista (spuntabile), categorie libere, ricerca dedicata, editor fullscreen autosave. Store `notes` (DB v3)
+- Menu: Calendario / Task per turno / Turni / Impostazioni (tema+backup)
+- Etichette fasce preset = orari reali turni (07–15/15–23/23–07); calcolo fascia resta elastico
+
+## v5 (2026-07-15)
+- Menu Turni (inserisci da calendario ✎ sequenziale / tipi turno CRUD / import .Shifter)
+- Note riportate: data origine invece del giorno settimana
 
 ## v4 (2026-07-15) — turni di lavoro
 - Import backup .Shifter (SQLite, sql.js vendored) — testato su file reale: 3412 turni

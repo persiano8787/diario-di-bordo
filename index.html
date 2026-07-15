@@ -238,6 +238,20 @@ textarea.preset{
   flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;
   padding:12px 14px calc(env(safe-area-inset-bottom) + 12px);
 }
+.hdr-input{
+  display:block;width:100%;background:none;border:none;color:#fff;
+  font-size:1.05rem;font-weight:600;outline:none;font-family:inherit;padding:0;
+}
+.hdr-input::placeholder{color:rgba(255,255,255,.45)}
+.hdr-input.hdr-sub{font-size:.74rem;font-weight:400;opacity:.85;margin-top:1px}
+.task.selnote{border-color:var(--accent);background:var(--accent-soft)}
+.sel-check{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  border:2px solid var(--accent);margin-top:2px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.75rem;color:#fff;
+}
+.task.selnote .sel-check{background:var(--accent)}
 .sheet-input{
   width:100%;background:var(--card);border:1px solid var(--line);
   border-radius:12px;padding:11px 13px;font-size:1rem;color:var(--ink);
@@ -281,7 +295,7 @@ textarea.preset{
 </div><!-- /viewDiario -->
 
 <div class="view hide" id="viewAppunti">
-  <header>
+  <header id="notesHeader">
     <div class="date-nav">
       <div>
         <h1>Appunti</h1>
@@ -291,6 +305,17 @@ textarea.preset{
     <div class="hbtns">
       <button class="icon-btn" id="noteSearchBtn">⌕</button>
       <button class="icon-btn" id="menuBtn2">☰</button>
+    </div>
+  </header>
+  <header id="notesSelHeader" style="display:none">
+    <div class="date-nav">
+      <button class="arrow" id="selExit">✕</button>
+      <h1 style="font-size:1rem" id="selCount">0 selezionati</h1>
+    </div>
+    <div class="hbtns">
+      <button class="icon-btn" id="selDelBtn" title="Elimina">🗑</button>
+      <button class="icon-btn" id="selCatBtn" title="Sposta in categoria">🏷</button>
+      <button class="icon-btn" id="selSaveBtn" title="Salva su file">💾</button>
     </div>
   </header>
   <main>
@@ -311,10 +336,8 @@ textarea.preset{
   <div class="sheet">
     <h2>Menu</h2>
     <div class="menu-row" id="calRow"><span class="ic">📅</span><span>Calendario</span></div>
-    <div class="menu-row" id="presetRow"><span class="ic">📋</span><span>Task per turno</span></div>
     <div class="menu-row" id="turniRow"><span class="ic">📆</span><span>Turni</span></div>
     <div class="menu-row" id="settingsRow"><span class="ic">⚙️</span><span>Impostazioni</span></div>
-    <input type="file" id="shifterFile" style="display:none">
   </div>
 </div>
 
@@ -327,24 +350,26 @@ textarea.preset{
     <div class="menu-row" id="exportMdRow"><span class="ic">📄</span><span>Esporta diario leggibile (Markdown)</span></div>
     <div class="menu-row" id="importRow"><span class="ic">📥</span><span>Importa backup</span></div>
     <input type="file" id="importFile" accept=".json" style="display:none">
+    <div class="menu-row" id="wipeRow" style="color:var(--danger)"><span class="ic">🗑</span><span>Elimina tutti i dati</span></div>
   </div>
 </div>
 
 <!-- Note editor (fullscreen) -->
 <div class="fullpanel" id="notePanel">
   <header>
-    <div class="date-nav">
+    <div class="date-nav" style="flex:1;min-width:0">
       <button class="arrow" id="noteBack">‹</button>
-      <h1 style="font-size:1rem" id="notePanelTitle">Appunto</h1>
+      <div style="flex:1;min-width:0">
+        <input type="text" id="noteTitle" class="hdr-input" placeholder="Titolo…">
+        <input type="text" id="noteCat" class="hdr-input hdr-sub" placeholder="Categoria…" list="catList">
+        <datalist id="catList"></datalist>
+      </div>
     </div>
     <div class="hbtns">
       <button class="icon-btn" id="noteDelBtn">🗑</button>
     </div>
   </header>
   <div class="note-body">
-    <input type="text" id="noteTitle" class="sheet-input" placeholder="Titolo">
-    <input type="text" id="noteCat" class="sheet-input" placeholder="Categoria (es. Spesa)" list="catList">
-    <datalist id="catList"></datalist>
     <textarea id="noteText" class="preset" style="flex:1;min-height:0;resize:none;display:none"></textarea>
     <div id="noteBodyList" style="flex:1;overflow-y:auto;display:none">
       <div class="tasks" id="noteItems"></div>
@@ -353,6 +378,15 @@ textarea.preset{
       <textarea id="noteItemInput" class="grow-input" rows="1" placeholder="Aggiungi voce…" enterkeyhint="send"></textarea>
       <button class="send-btn" id="noteItemAdd">↑</button>
     </div>
+  </div>
+</div>
+
+<!-- Categoria per selezione multipla -->
+<div class="panel" id="selCatPanel">
+  <div class="sheet">
+    <h2>Sposta in categoria</h2>
+    <input type="text" id="selCatInput" class="sheet-input" placeholder="Categoria…" list="catList">
+    <button class="primary-btn" id="selCatApply">Applica</button>
   </div>
 </div>
 
@@ -403,8 +437,11 @@ textarea.preset{
   <div class="sheet">
     <h2>Turni</h2>
     <div class="menu-row" id="tInsertRow"><span class="ic">✎</span><span>Inserisci turni nel calendario</span></div>
+    <div class="menu-row" id="presetRow"><span class="ic">📋</span><span>Task per turno</span></div>
     <div class="menu-row" id="tTypesRow"><span class="ic">⚙</span><span>Tipi turno</span></div>
-    <div class="menu-row" id="tImportRow"><span class="ic">📥</span><span>Importa da Shifter (.Shifter)</span></div>
+    <div class="menu-row" id="tExportRow"><span class="ic">💾</span><span>Esporta turni</span></div>
+    <div class="menu-row" id="tImportRow"><span class="ic">📥</span><span>Importa turni</span></div>
+    <input type="file" id="turniFile" accept=".json" style="display:none">
   </div>
 </div>
 
@@ -571,6 +608,40 @@ function renderText(text){
   return text.replace(/#[\wàèéìòù]+/gi,'').replace(/\s+/g,' ').trim()||text;
 }
 
+/* ---------- pannelli + tasto indietro Android ----------
+   Ogni pannello aperto = una entry nella history del browser.
+   Back hardware chiude il pannello in cima invece di uscire dall'app;
+   i sottomenu restano impilati (back da Impostazioni torna al Menu). */
+const panelStack=[];
+let suppressPops=0;
+function doCloseEntry(e){if(e.close)e.close();else if(e.el)e.el.classList.remove('show');}
+function pOpen(el,onClose){
+  if(el&&el.classList.contains('show'))return; // già aperto (es. picker a catena)
+  if(el)el.classList.add('show');
+  panelStack.push({el,close:onClose||null});
+  history.pushState({d:panelStack.length},'');
+}
+function pClose(el){
+  const i=panelStack.map(x=>x.el).lastIndexOf(el);
+  if(i<0){if(el)el.classList.remove('show');return;}
+  const[e]=panelStack.splice(i,1);
+  doCloseEntry(e);
+  suppressPops++;history.back();
+}
+function pReplace(elClose,elOpen,onClose){ // sostituisce il top senza toccare la history
+  const i=panelStack.map(x=>x.el).lastIndexOf(elClose);
+  if(i>=0){const[e]=panelStack.splice(i,1);if(e.el)e.el.classList.remove('show');}
+  else if(elClose)elClose.classList.remove('show');
+  if(elOpen)elOpen.classList.add('show');
+  panelStack.push({el:elOpen,close:onClose||null});
+}
+window.addEventListener('popstate',()=>{
+  if(suppressPops>0){suppressPops--;return;}
+  const e=panelStack.pop();
+  if(e){doCloseEntry(e);return;}
+  if(!document.getElementById('viewAppunti').classList.contains('hide'))showTab('diario',false);
+});
+
 /* ---------- render ---------- */
 async function render(){
   const isToday=viewDate===todayKey();
@@ -667,12 +738,12 @@ document.getElementById('todayBtn').onclick=()=>{viewDate=todayKey();render();};
 
 /* ---------- menu ---------- */
 const menuPanel=document.getElementById('menuPanel');
-document.getElementById('menuBtn').onclick=()=>menuPanel.classList.add('show');
-document.getElementById('menuBtn2').onclick=()=>menuPanel.classList.add('show');
-menuPanel.onclick=e=>{if(e.target===menuPanel)menuPanel.classList.remove('show');};
+document.getElementById('menuBtn').onclick=()=>pOpen(menuPanel);
+document.getElementById('menuBtn2').onclick=()=>pOpen(menuPanel);
+menuPanel.onclick=e=>{if(e.target===menuPanel)pClose(menuPanel);};
 const settingsPanel=document.getElementById('settingsPanel');
-document.getElementById('settingsRow').onclick=()=>{menuPanel.classList.remove('show');settingsPanel.classList.add('show');};
-settingsPanel.onclick=e=>{if(e.target===settingsPanel)settingsPanel.classList.remove('show');};
+document.getElementById('settingsRow').onclick=()=>pOpen(settingsPanel);
+settingsPanel.onclick=e=>{if(e.target===settingsPanel)pClose(settingsPanel);};
 function updateThemeUI(){
   document.getElementById('themeIc').textContent=theme==='dark'?'☀️':'🌙';
   document.getElementById('themeLabel').textContent=theme==='dark'?'Tema chiaro':'Tema scuro';
@@ -693,7 +764,7 @@ document.getElementById('exportJsonRow').onclick=async()=>{
   const payload={v:3,tasks:await getAll(),shifts:await getAllShifts(),
     notes:await getAllNotes(),presets:getPresets(),shiftTypes:getShiftTypes()};
   download('diario-backup-'+todayKey()+'.json',JSON.stringify(payload,null,2),'application/json');
-  settingsPanel.classList.remove('show');toast('Backup JSON scaricato');
+  pClose(settingsPanel);toast('Backup JSON scaricato');
 };
 document.getElementById('exportMdRow').onclick=async()=>{
   const all=(await getAll()).sort((a,b)=>a.day.localeCompare(b.day)||a.id-b.id);
@@ -705,7 +776,7 @@ document.getElementById('exportMdRow').onclick=async()=>{
     md+='\n';
   });
   download('diario-'+todayKey()+'.md',md,'text/markdown');
-  settingsPanel.classList.remove('show');toast('Diario Markdown scaricato');
+  pClose(settingsPanel);toast('Diario Markdown scaricato');
 };
 document.getElementById('importRow').onclick=()=>document.getElementById('importFile').click();
 document.getElementById('importFile').onchange=e=>{
@@ -723,7 +794,7 @@ document.getElementById('importFile').onchange=e=>{
         if(data.shiftTypes)localStorage.setItem('shiftTypes',JSON.stringify(data.shiftTypes));
       }
       toast('Backup importato ('+tasks.length+' note)');
-      settingsPanel.classList.remove('show');render();
+      pClose(settingsPanel);render();
     }catch(err){toast('File non valido');}
   };
   r.readAsText(f);
@@ -731,8 +802,8 @@ document.getElementById('importFile').onchange=e=>{
 
 /* ---------- search ---------- */
 const searchPanel=document.getElementById('searchPanel');
-document.getElementById('searchBtn').onclick=()=>{searchPanel.classList.add('show');document.getElementById('searchInput').focus();};
-searchPanel.onclick=e=>{if(e.target===searchPanel)searchPanel.classList.remove('show');};
+document.getElementById('searchBtn').onclick=()=>{pOpen(searchPanel);document.getElementById('searchInput').focus();};
+searchPanel.onclick=e=>{if(e.target===searchPanel)pClose(searchPanel);};
 document.getElementById('searchInput').addEventListener('input',async e=>{
   const q=e.target.value.trim().toLowerCase();
   const box=document.getElementById('searchResults');
@@ -744,7 +815,7 @@ document.getElementById('searchInput').addEventListener('input',async e=>{
     d.className='search-result'+(t.done?' done':'');
     d.innerHTML=`<div class="sr-date">${prettyDate(t.day)}</div><div class="sr-text"></div>`;
     d.querySelector('.sr-text').textContent=t.text;
-    d.onclick=()=>{viewDate=t.day;searchPanel.classList.remove('show');document.getElementById('searchInput').value='';box.innerHTML='';render();};
+    d.onclick=()=>{viewDate=t.day;pClose(searchPanel);document.getElementById('searchInput').value='';box.innerHTML='';render();};
     box.appendChild(d);
   });
 });
@@ -763,11 +834,11 @@ document.getElementById('calEditBtn').onclick=()=>setCalEdit(!calEdit);
 function openCal(){
   const d=keyToDate(viewDate);calY=d.getFullYear();calM=d.getMonth();
   setCalEdit(false);
-  renderCal();calPanel.classList.add('show');
+  renderCal();pOpen(calPanel);
 }
 document.getElementById('dateBlock').onclick=openCal;
-document.getElementById('calRow').onclick=()=>{menuPanel.classList.remove('show');openCal();};
-calPanel.onclick=e=>{if(e.target===calPanel)calPanel.classList.remove('show');};
+document.getElementById('calRow').onclick=()=>{showTab('diario',false);openCal();};
+calPanel.onclick=e=>{if(e.target===calPanel)pClose(calPanel);};
 document.getElementById('calPrev').onclick=()=>{calM--;if(calM<0){calM=11;calY--;}renderCal();};
 document.getElementById('calNext').onclick=()=>{calM++;if(calM>11){calM=0;calY++;}renderCal();};
 async function renderCal(){
@@ -805,7 +876,7 @@ async function renderCal(){
     }
     cell.onclick=()=>{
       if(calEdit){openShiftPicker(key,true);return;}
-      viewDate=key;calPanel.classList.remove('show');render();
+      viewDate=key;pClose(calPanel);render();
     };
     cell.oncontextmenu=e=>{e.preventDefault();openShiftPicker(key);}; // long-press su Android
     grid.appendChild(cell);
@@ -829,7 +900,7 @@ function openShiftPicker(day,chain){
       await renderCal();
       openShiftPicker(next,true);
     }else{
-      shiftPickPanel.classList.remove('show');renderCal();render();
+      pClose(shiftPickPanel);renderCal();render();
     }
   };
   const mk=(html,fn)=>{
@@ -847,22 +918,21 @@ function openShiftPicker(day,chain){
   });
   mk('<span class="ic">✕</span><span>Nessun turno</span>',
     async()=>{await delShift(pickDay);after();});
-  shiftPickPanel.classList.add('show');
+  pOpen(shiftPickPanel);
 }
-shiftPickPanel.onclick=e=>{if(e.target===shiftPickPanel){shiftPickPanel.classList.remove('show');render();}};
+shiftPickPanel.onclick=e=>{if(e.target===shiftPickPanel){pClose(shiftPickPanel);render();}};
 
 /* ---------- turni: sotto-menu + tipi turno ---------- */
 function setShiftTypes(l){localStorage.setItem('shiftTypes',JSON.stringify(l));}
 const turniPanel=document.getElementById('turniPanel');
 const typesPanel=document.getElementById('typesPanel');
 const typeEditPanel=document.getElementById('typeEditPanel');
-document.getElementById('turniRow').onclick=()=>{menuPanel.classList.remove('show');turniPanel.classList.add('show');};
-turniPanel.onclick=e=>{if(e.target===turniPanel)turniPanel.classList.remove('show');};
-typesPanel.onclick=e=>{if(e.target===typesPanel)typesPanel.classList.remove('show');};
-typeEditPanel.onclick=e=>{if(e.target===typeEditPanel)typeEditPanel.classList.remove('show');};
-document.getElementById('tInsertRow').onclick=()=>{turniPanel.classList.remove('show');openCal();setCalEdit(true);};
-document.getElementById('tTypesRow').onclick=()=>{turniPanel.classList.remove('show');renderTypes();typesPanel.classList.add('show');};
-document.getElementById('tImportRow').onclick=()=>document.getElementById('shifterFile').click();
+document.getElementById('turniRow').onclick=()=>pOpen(turniPanel);
+turniPanel.onclick=e=>{if(e.target===turniPanel)pClose(turniPanel);};
+typesPanel.onclick=e=>{if(e.target===typesPanel)pClose(typesPanel);};
+typeEditPanel.onclick=e=>{if(e.target===typeEditPanel)pClose(typeEditPanel);};
+document.getElementById('tInsertRow').onclick=()=>{openCal();setCalEdit(true);};
+document.getElementById('tTypesRow').onclick=()=>{renderTypes();pOpen(typesPanel);};
 
 let editTypeIdx=null;
 function renderTypes(){
@@ -885,7 +955,7 @@ function openTypeEdit(i){
   document.getElementById('typeStart').value=t.start;
   document.getElementById('typeEnd').value=t.end;
   document.getElementById('typeDelBtn').style.display=i==null?'none':'block';
-  typeEditPanel.classList.add('show');
+  pOpen(typeEditPanel);
 }
 document.getElementById('typeAddBtn').onclick=()=>openTypeEdit(null);
 document.getElementById('typeSaveBtn').onclick=async()=>{
@@ -906,12 +976,12 @@ document.getElementById('typeSaveBtn').onclick=async()=>{
       }
     }
   }
-  typeEditPanel.classList.remove('show');renderTypes();renderCal();render();toast('Tipo turno salvato');
+  pClose(typeEditPanel);renderTypes();renderCal();render();toast('Tipo turno salvato');
 };
 document.getElementById('typeDelBtn').onclick=()=>{
   if(editTypeIdx==null)return;
   const list=getShiftTypes();list.splice(editTypeIdx,1);setShiftTypes(list);
-  typeEditPanel.classList.remove('show');renderTypes();
+  pClose(typeEditPanel);renderTypes();
   toast('Tipo eliminato (giorni già assegnati restano)');
 };
 
@@ -922,66 +992,55 @@ document.getElementById('presetRow').onclick=()=>{
   document.getElementById('presetM').value=(p.mattina||[]).join('\n');
   document.getElementById('presetP').value=(p.pomeriggio||[]).join('\n');
   document.getElementById('presetN').value=(p.notte||[]).join('\n');
-  menuPanel.classList.remove('show');presetPanel.classList.add('show');
+  pOpen(presetPanel);
 };
-presetPanel.onclick=e=>{if(e.target===presetPanel)presetPanel.classList.remove('show');};
+presetPanel.onclick=e=>{if(e.target===presetPanel)pClose(presetPanel);};
 document.getElementById('presetSave').onclick=()=>{
   const g=id=>document.getElementById(id).value.split('\n').map(s=>s.trim()).filter(Boolean);
   localStorage.setItem('shiftPresets',JSON.stringify({mattina:g('presetM'),pomeriggio:g('presetP'),notte:g('presetN')}));
-  presetPanel.classList.remove('show');toast('Task per turno salvati');render();
+  pClose(presetPanel);toast('Task per turno salvati');render();
 };
 
-/* ---------- import Shifter (.Shifter = SQLite) ---------- */
-function loadSqlJs(){
-  return new Promise((res,rej)=>{
-    if(window.initSqlJs)return res();
-    const s=document.createElement('script');
-    s.src='./sql-wasm.js';s.onload=()=>res();s.onerror=()=>rej(new Error('sql.js'));
-    document.head.appendChild(s);
-  });
-}
-document.getElementById('shifterFile').onchange=async e=>{
+/* ---------- turni: esporta / importa (JSON) ---------- */
+document.getElementById('tExportRow').onclick=async()=>{
+  const payload={tipo:'turni',v:1,shiftTypes:getShiftTypes(),shifts:await getAllShifts()};
+  download('turni-'+todayKey()+'.json',JSON.stringify(payload,null,2),'application/json');
+  toast('Turni esportati');
+};
+document.getElementById('tImportRow').onclick=()=>document.getElementById('turniFile').click();
+document.getElementById('turniFile').onchange=e=>{
   const f=e.target.files[0];if(!f)return;
   e.target.value='';
-  try{
-    toast('Leggo il file…');
-    await loadSqlJs();
-    const SQL=await initSqlJs({locateFile:n=>'./'+n});
-    const sdb=new SQL.Database(new Uint8Array(await f.arrayBuffer()));
-    const types={};
-    const tRes=sdb.exec('SELECT _id,texto,horaInicio1,horaFinal1 FROM tablaTurnos');
-    (tRes[0]?tRes[0].values:[]).forEach(([id,texto,h1,h2])=>{
-      types[id]={code:String(texto==null?id:texto),start:h1||'',end:h2||''};
-    });
-    localStorage.setItem('shiftTypes',JSON.stringify(Object.values(types)));
-    const dRes=sdb.exec('SELECT fecha,turno1 FROM dias WHERE turno1 IS NOT NULL');
-    let n=0;
-    for(const [fecha,t1] of (dRes[0]?dRes[0].values:[])){
-      const ty=types[t1];if(!ty)continue;
-      const s=String(fecha);if(!/^\d{8}$/.test(s))continue;
-      const day=s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6,8);
-      const prev=await getShift(day);
-      await putShift({day,code:ty.code,start:ty.start,end:ty.end,
-        fascia:fasciaOf(ty.code,ty.start,ty.end),seeded:prev?prev.seeded:false});
-      n++;
-    }
-    sdb.close();
-    menuPanel.classList.remove('show');
-    turniPanel.classList.remove('show');
-    toast(n+' turni importati');
-    render();
-  }catch(err){toast('Errore: file .Shifter non valido');}
+  const r=new FileReader();
+  r.onload=async()=>{
+    try{
+      const data=JSON.parse(r.result);
+      if(data.tipo!=='turni')throw new Error('formato');
+      if(data.shiftTypes&&data.shiftTypes.length)setShiftTypes(data.shiftTypes);
+      let n=0;
+      for(const s of (data.shifts||[])){if(s.day){await putShift(s);n++;}}
+      toast(n+' turni importati');
+      render();
+    }catch(err){toast('File turni non valido');}
+  };
+  r.readAsText(f);
 };
 
 /* ---------- tabs ---------- */
-function showTab(t){
+function showTab(t,push){
+  if(push===undefined)push=true;
+  const wasAppunti=!document.getElementById('viewAppunti').classList.contains('hide');
   document.getElementById('viewDiario').classList.toggle('hide',t!=='diario');
   document.getElementById('viewAppunti').classList.toggle('hide',t!=='appunti');
   document.getElementById('tabDiario').classList.toggle('active',t==='diario');
   document.getElementById('tabAppunti').classList.toggle('active',t==='appunti');
-  if(t==='appunti')renderNotes();
+  if(t==='appunti'){renderNotes();if(push&&!wasAppunti)history.pushState({tab:1},'');}
 }
-document.getElementById('tabDiario').onclick=()=>showTab('diario');
+document.getElementById('tabDiario').onclick=()=>{
+  if(!document.getElementById('viewAppunti').classList.contains('hide')){
+    suppressPops++;history.back();showTab('diario',false);
+  }
+};
 document.getElementById('tabAppunti').onclick=()=>showTab('appunti');
 
 /* ---------- notes (appunti) ---------- */
@@ -1015,12 +1074,21 @@ async function renderNotes(){
   Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'it')).forEach(cat=>{
     const h=document.createElement('div');h.className='cat-head';h.textContent=cat;list.appendChild(h);
     byCat[cat].sort((a,b)=>(b.mod||0)-(a.mod||0)).forEach(n=>{
-      const d=document.createElement('div');d.className='task';d.style.cursor='pointer';
-      d.innerHTML='<div class="task-body"><div class="task-text" style="font-weight:600"></div>'+
+      const d=document.createElement('div');
+      d.className='task'+(selMode&&selSet.has(n.id)?' selnote':'');
+      d.style.cursor='pointer';
+      d.innerHTML=(selMode?'<div class="sel-check">'+(selSet.has(n.id)?'✓':'')+'</div>':'')+
+        '<div class="task-body"><div class="task-text" style="font-weight:600"></div>'+
         '<div class="task-meta"><span class="time"></span></div></div>';
       d.querySelector('.task-text').textContent=n.titolo||'(senza titolo)';
       d.querySelector('.time').textContent=notePreview(n)+' · '+shortDate(dateKey(new Date(n.mod||Date.now())));
-      d.onclick=()=>openNote(n.id);
+      d.onclick=()=>{
+        if(selMode){
+          if(selSet.has(n.id))selSet.delete(n.id);else selSet.add(n.id);
+          updateSelUI();
+        }else openNote(n.id);
+      };
+      d.oncontextmenu=e=>{e.preventDefault();if(!selMode)enterSelMode(n.id);}; // long-press
       list.appendChild(d);
     });
   });
@@ -1029,7 +1097,14 @@ async function renderNotes(){
 /* editor appunto */
 const notePanel=document.getElementById('notePanel');
 let curNote=null,noteSaveT=null;
-async function openNote(id){
+const noteCloseFn=()=>{
+  clearTimeout(noteSaveT);
+  const p=saveCurNote();
+  curNote=null;
+  notePanel.classList.remove('show');
+  Promise.resolve(p).then(renderNotes);
+};
+async function openNote(id,replaceEl){
   const notes=await getAllNotes();
   curNote=notes.find(n=>n.id===id);
   if(!curNote)return;
@@ -1040,13 +1115,13 @@ async function openNote(id){
     const o=document.createElement('option');o.value=c;dl.appendChild(o);
   });
   const isList=curNote.tipo==='lista';
-  document.getElementById('notePanelTitle').textContent=isList?'Lista':'Appunto';
   document.getElementById('noteText').style.display=isList?'none':'block';
   document.getElementById('noteBodyList').style.display=isList?'block':'none';
   document.getElementById('noteItemComposer').style.display=isList?'flex':'none';
   if(isList)renderNoteItems();
   else document.getElementById('noteText').value=curNote.testo||'';
-  notePanel.classList.add('show');
+  if(replaceEl)pReplace(replaceEl,notePanel,noteCloseFn);
+  else pOpen(notePanel,noteCloseFn);
 }
 function renderNoteItems(){
   const box=document.getElementById('noteItems');box.innerHTML='';
@@ -1085,36 +1160,110 @@ async function addNoteItem(){
   await saveCurNote();renderNoteItems();
   document.getElementById('noteBodyList').scrollTop=999999;
 }
-document.getElementById('noteBack').onclick=async()=>{
-  clearTimeout(noteSaveT);await saveCurNote();
-  curNote=null;notePanel.classList.remove('show');renderNotes();
-};
+document.getElementById('noteBack').onclick=()=>pClose(notePanel);
 document.getElementById('noteDelBtn').onclick=async()=>{
   if(!curNote)return;
   if(!confirm('Eliminare questo appunto?'))return;
   await delNote(curNote.id);
-  curNote=null;notePanel.classList.remove('show');renderNotes();toast('Appunto eliminato');
+  curNote=null;pClose(notePanel);toast('Appunto eliminato');
 };
 
 /* nuovo appunto */
 const noteTypePanel=document.getElementById('noteTypePanel');
-document.getElementById('noteAddBtn').onclick=()=>noteTypePanel.classList.add('show');
-noteTypePanel.onclick=e=>{if(e.target===noteTypePanel)noteTypePanel.classList.remove('show');};
+document.getElementById('noteAddBtn').onclick=()=>pOpen(noteTypePanel);
+noteTypePanel.onclick=e=>{if(e.target===noteTypePanel)pClose(noteTypePanel);};
 async function newNote(tipo){
-  noteTypePanel.classList.remove('show');
   const id=await addNote({tipo,titolo:'',categoria:'',testo:'',items:[],mod:Date.now()});
-  openNote(id);
+  openNote(id,noteTypePanel);
 }
 document.getElementById('newNoteText').onclick=()=>newNote('testo');
 document.getElementById('newNoteList').onclick=()=>newNote('lista');
 
+/* ---------- selezione multipla appunti ---------- */
+let selMode=false,selSet=new Set(),selEntry=null;
+function updateSelUI(){
+  document.getElementById('notesHeader').style.display=selMode?'none':'flex';
+  document.getElementById('notesSelHeader').style.display=selMode?'flex':'none';
+  if(selMode)document.getElementById('selCount').textContent=selSet.size+' selezionat'+(selSet.size===1?'o':'i');
+  renderNotes();
+}
+function enterSelMode(id){
+  if(selMode)return;
+  selMode=true;selSet=new Set(id!=null?[id]:[]);
+  selEntry={el:null,close:()=>{selMode=false;selSet.clear();selEntry=null;updateSelUI();}};
+  panelStack.push(selEntry);
+  history.pushState({d:panelStack.length},'');
+  updateSelUI();
+}
+function exitSelMode(){
+  if(!selEntry)return;
+  const i=panelStack.indexOf(selEntry);
+  if(i>=0)panelStack.splice(i,1);
+  selEntry.close();
+  suppressPops++;history.back();
+}
+document.getElementById('selExit').onclick=exitSelMode;
+document.getElementById('selDelBtn').onclick=async()=>{
+  if(!selSet.size)return;
+  if(!confirm('Eliminare '+selSet.size+' appunti?'))return;
+  for(const id of selSet)await delNote(id);
+  toast(selSet.size+' appunti eliminati');
+  exitSelMode();
+};
+const selCatPanel=document.getElementById('selCatPanel');
+selCatPanel.onclick=e=>{if(e.target===selCatPanel)pClose(selCatPanel);};
+document.getElementById('selCatBtn').onclick=async()=>{
+  if(!selSet.size)return;
+  const dl=document.getElementById('catList');dl.innerHTML='';
+  [...new Set((await getAllNotes()).map(n=>(n.categoria||'').trim()).filter(Boolean))].forEach(c=>{
+    const o=document.createElement('option');o.value=c;dl.appendChild(o);
+  });
+  document.getElementById('selCatInput').value='';
+  pOpen(selCatPanel);
+};
+document.getElementById('selCatApply').onclick=async()=>{
+  const cat=document.getElementById('selCatInput').value.trim();
+  const notes=(await getAllNotes()).filter(n=>selSet.has(n.id));
+  for(const n of notes){n.categoria=cat;n.mod=Date.now();await putNote(n);}
+  pClose(selCatPanel);
+  toast(notes.length+' appunti spostati in "'+(cat||'Senza categoria')+'"');
+  exitSelMode();
+};
+document.getElementById('selSaveBtn').onclick=async()=>{
+  if(!selSet.size)return;
+  const notes=(await getAllNotes()).filter(n=>selSet.has(n.id));
+  let md='';
+  for(const n of notes){
+    md+='# '+(n.titolo||'(senza titolo)')+(n.categoria?' — '+n.categoria:'')+'\n\n';
+    if(n.tipo==='lista')(n.items||[]).forEach(i=>{md+='- ['+(i.done?'x':' ')+'] '+i.t+'\n';});
+    else md+=(n.testo||'')+'\n';
+    md+='\n';
+  }
+  download('appunti-'+todayKey()+'.md',md,'text/markdown');
+  toast(notes.length+' appunti salvati su file');
+  exitSelMode();
+};
+
+/* ---------- elimina tutti i dati ---------- */
+document.getElementById('wipeRow').onclick=async()=>{
+  if(!confirm('Eliminare TUTTI i dati? Note del diario, appunti, turni, tipi turno e task per turno. Azione irreversibile.'))return;
+  if(!confirm('Confermi davvero? Consiglio: esporta prima un backup.'))return;
+  for(const st of [STORE,'shifts','notes'])
+    await new Promise(r=>{tx('readwrite',st).clear().onsuccess=()=>r();});
+  localStorage.removeItem('shiftPresets');
+  localStorage.removeItem('shiftTypes');
+  pClose(settingsPanel);
+  render();renderNotes();
+  toast('Tutti i dati eliminati');
+};
+
 /* ricerca appunti */
 const noteSearchPanel=document.getElementById('noteSearchPanel');
 document.getElementById('noteSearchBtn').onclick=()=>{
-  noteSearchPanel.classList.add('show');
+  pOpen(noteSearchPanel);
   document.getElementById('noteSearchInput').focus();
 };
-noteSearchPanel.onclick=e=>{if(e.target===noteSearchPanel)noteSearchPanel.classList.remove('show');};
+noteSearchPanel.onclick=e=>{if(e.target===noteSearchPanel)pClose(noteSearchPanel);};
 document.getElementById('noteSearchInput').addEventListener('input',async e=>{
   const q=e.target.value.trim().toLowerCase();
   const box=document.getElementById('noteSearchResults');
@@ -1129,11 +1278,7 @@ document.getElementById('noteSearchInput').addEventListener('input',async e=>{
     d.innerHTML='<div class="sr-date"></div><div class="sr-text"></div>';
     d.querySelector('.sr-date').textContent=(n.categoria||'Senza categoria');
     d.querySelector('.sr-text').textContent=(n.titolo||'(senza titolo)')+' — '+notePreview(n);
-    d.onclick=()=>{
-      noteSearchPanel.classList.remove('show');
-      document.getElementById('noteSearchInput').value='';box.innerHTML='';
-      openNote(n.id);
-    };
+    d.onclick=()=>openNote(n.id);
     box.appendChild(d);
   });
 });

@@ -1,7 +1,12 @@
 # DIARIO_BORDO — Stato Progetto
 
-**Data:** 2026-07-15
-**Fase:** v8 DEPLOYED — stabile, testata su telefono
+**Data:** 2026-07-18
+**Fase:** v9 DEPLOYED — da testare su telefono
+
+## v9 (2026-07-18) — Diario compatto + modifica inline
+- Card Diario ~49% più basse: gap 8→4, padding 12×14→6×12, check 24→20, ora inline a fine testo (riga meta solo se tag/carried). **Testo invariato** (.98rem/1.45) per leggibilità.
+- Modifica nota: tap sul testo → textarea inline; Invio o blur salva, Shift+Invio a capo, testo vuoto annulla (non elimina). `time/done/carried/origin` invariati.
+- SW cache v8→v9. Spec: docs/superpowers/specs/2026-07-18-diario-compatto-edit-design.md
 
 ## v8 (2026-07-15)
 - Fix: lista tipi turno vuota resta vuota (Elimina dati o cancellazione manuale); predefiniti solo a prima installazione. Utente crea i propri tipi.

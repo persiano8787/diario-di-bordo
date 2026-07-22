@@ -1,7 +1,7 @@
 # DIARIO_BORDO — Stato Progetto
 
 **Data:** 2026-07-22
-**Fase:** v10 DEPLOYED — da testare su telefono
+**Fase:** v10 DEPLOYED — testata su telefono OK
 
 ## v10 (2026-07-22) — Appunti: categorie collassabili
 - Header categoria tappabile: freccia `▾/▸` che ruota + nome + conteggio note a destra (visibile anche da chiusa).

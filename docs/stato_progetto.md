@@ -1,7 +1,15 @@
 # DIARIO_BORDO — Stato Progetto
 
-**Data:** 2026-07-18
-**Fase:** v9 DEPLOYED — da testare su telefono
+**Data:** 2026-07-22
+**Fase:** v10 DEPLOYED — da testare su telefono
+
+## v10 (2026-07-22) — Appunti: categorie collassabili
+- Header categoria tappabile: freccia `▾/▸` che ruota + nome + conteggio note a destra (visibile anche da chiusa).
+- Stato in `localStorage['notesCatOpen']`. Primo avvio: tutte chiuse tranne la categoria dell'appunto con `mod` più recente. Poi comanda solo l'utente.
+- Categoria nuova (non nella mappa) = aperta, così un appunto appena creato non sparisce. Chiavi orfane ripulite al render.
+- Toggle senza re-render né rilettura IndexedDB: classe su `.cat-group`, collasso `grid-template-rows:1fr→0fr` (~180ms, altezze variabili senza calcolo px). Scroll non salta.
+- Sposta in categoria (selezione multipla) forza aperta la destinazione. Elimina dati rimuove anche la chiave.
+- Nessun cambio schema DB. SW cache v9→v10. Spec: docs/superpowers/specs/2026-07-22-appunti-categorie-collassabili-design.md
 
 ## v9 (2026-07-18) — Diario compatto + modifica inline
 - Card Diario ~49% più basse: gap 8→4, padding 12×14→6×12, check 24→20, ora inline a fine testo (riga meta solo se tag/carried). **Testo invariato** (.98rem/1.45) per leggibilità.

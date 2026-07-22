@@ -235,7 +235,15 @@ textarea.preset{
 .cat-head{
   font-size:.72rem;font-weight:700;color:var(--accent);
   letter-spacing:.5px;text-transform:uppercase;margin:12px 2px 2px;
+  display:flex;align-items:center;gap:7px;padding:4px 2px;
+  cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
 }
+.cat-arrow{font-size:.8rem;line-height:1;transition:transform .18s ease}
+.cat-head.closed .cat-arrow{transform:rotate(-90deg)}
+.cat-count{margin-left:auto;font-weight:600;opacity:.6}
+.cat-group{display:grid;grid-template-rows:1fr;transition:grid-template-rows .18s ease}
+.cat-group.closed{grid-template-rows:0fr}
+.cat-inner{min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:4px}
 .fullpanel{
   position:fixed;inset:0;background:var(--paper);z-index:30;
   display:none;flex-direction:column;
@@ -1090,6 +1098,9 @@ function getAllNotes(){
     c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else res(out);};
   });
 }
+function noteCat(n){return (n.categoria||'').trim()||'Senza categoria';}
+function getCatOpen(){try{return JSON.parse(localStorage.getItem('notesCatOpen'))||null;}catch(e){return null;}}
+function setCatOpen(m){localStorage.setItem('notesCatOpen',JSON.stringify(m));}
 function notePreview(n){
   if(n.tipo==='lista'){
     const it=n.items||[];
@@ -1107,9 +1118,34 @@ async function renderNotes(){
     return;
   }
   const byCat={};
-  notes.forEach(n=>{const c=(n.categoria||'').trim()||'Senza categoria';(byCat[c]=byCat[c]||[]).push(n);});
+  notes.forEach(n=>{const c=noteCat(n);(byCat[c]=byCat[c]||[]).push(n);});
+  let open=getCatOpen();
+  if(!open){ // primo avvio: tutte chiuse tranne quella dell'appunto piu recente
+    open={};let recent=null,best=-1;
+    notes.forEach(n=>{const m=n.mod||0;if(m>best){best=m;recent=noteCat(n);}});
+    Object.keys(byCat).forEach(c=>open[c]=(c===recent));
+  }
+  const pruned={}; // categorie nuove = aperte, chiavi orfane via
+  Object.keys(byCat).forEach(c=>pruned[c]=(c in open)?!!open[c]:true);
+  if(JSON.stringify(pruned)!==JSON.stringify(open))setCatOpen(pruned);
+  open=pruned;
   Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'it')).forEach(cat=>{
-    const h=document.createElement('div');h.className='cat-head';h.textContent=cat;list.appendChild(h);
+    const isOpen=open[cat];
+    const h=document.createElement('div');
+    h.className='cat-head'+(isOpen?'':' closed');
+    h.innerHTML='<span class="cat-arrow">▾</span><span class="cat-name"></span><span class="cat-count"></span>';
+    h.querySelector('.cat-name').textContent=cat;
+    h.querySelector('.cat-count').textContent=byCat[cat].length;
+    const g=document.createElement('div');g.className='cat-group'+(isOpen?'':' closed');
+    const inner=document.createElement('div');inner.className='cat-inner';
+    g.appendChild(inner);
+    h.onclick=()=>{
+      const close=!h.classList.contains('closed');
+      h.classList.toggle('closed',close);
+      g.classList.toggle('closed',close);
+      const m=getCatOpen()||{};m[cat]=!close;setCatOpen(m);
+    };
+    list.appendChild(h);list.appendChild(g);
     byCat[cat].sort((a,b)=>(b.mod||0)-(a.mod||0)).forEach(n=>{
       const d=document.createElement('div');
       d.className='task'+(selMode&&selSet.has(n.id)?' selnote':'');
@@ -1126,7 +1162,7 @@ async function renderNotes(){
         }else openNote(n.id);
       };
       d.oncontextmenu=e=>{e.preventDefault();if(!selMode)enterSelMode(n.id);}; // long-press
-      list.appendChild(d);
+      inner.appendChild(d);
     });
   });
 }
@@ -1262,6 +1298,7 @@ document.getElementById('selCatApply').onclick=async()=>{
   const cat=document.getElementById('selCatInput').value.trim();
   const notes=(await getAllNotes()).filter(n=>selSet.has(n.id));
   for(const n of notes){n.categoria=cat;n.mod=Date.now();await putNote(n);}
+  const m=getCatOpen()||{};m[cat||'Senza categoria']=true;setCatOpen(m); // altrimenti sembrano sparite
   pClose(selCatPanel);
   toast(notes.length+' appunti spostati in "'+(cat||'Senza categoria')+'"');
   exitSelMode();
@@ -1288,6 +1325,7 @@ document.getElementById('wipeRow').onclick=async()=>{
   for(const st of [STORE,'shifts','notes'])
     await new Promise(r=>{tx('readwrite',st).clear().onsuccess=()=>r();});
   localStorage.removeItem('shiftPresets');
+  localStorage.removeItem('notesCatOpen');
   localStorage.setItem('shiftTypes','[]');
   pClose(settingsPanel);
   render();renderNotes();
